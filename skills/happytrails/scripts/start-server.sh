@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the HappyTrails server and output connection info
-# Usage: start-server.sh [--project-dir <path>] [--host <bind-host>] [--url-host <display-host>] [--foreground] [--background]
+# Usage: start-server.sh [--project-dir <path>] [--host <bind-host>] [--url-host <display-host>] [--owner-pid <pid>] [--foreground] [--background]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -9,11 +9,13 @@ FOREGROUND="false"
 FORCE_BACKGROUND="false"
 BIND_HOST="127.0.0.1"
 URL_HOST=""
+EXPLICIT_OWNER_PID=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project-dir) PROJECT_DIR="$2"; shift 2 ;;
     --host) BIND_HOST="$2"; shift 2 ;;
     --url-host) URL_HOST="$2"; shift 2 ;;
+    --owner-pid) EXPLICIT_OWNER_PID="$2"; shift 2 ;;
     --foreground|--no-daemon) FOREGROUND="true"; shift ;;
     --background|--daemon) FORCE_BACKGROUND="true"; shift ;;
     *) echo "{\"error\": \"Unknown argument: $1\"}"; exit 1 ;;
@@ -61,9 +63,13 @@ fi
 
 cd "$SCRIPT_DIR"
 
-OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
-if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" ]]; then
-  OWNER_PID="$PPID"
+if [[ -n "$EXPLICIT_OWNER_PID" ]]; then
+  OWNER_PID="$EXPLICIT_OWNER_PID"
+else
+  OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
+  if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" ]]; then
+    OWNER_PID="$PPID"
+  fi
 fi
 case "${OSTYPE:-}" in
   msys*|cygwin*|mingw*) OWNER_PID="" ;;
