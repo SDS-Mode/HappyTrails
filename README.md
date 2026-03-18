@@ -78,13 +78,18 @@ Every tool the agent uses:
 
 ```
 HappyTrails/
-├── SKILL.md              # Skill definition (entry point)
-├── scripts/
-│   ├── server.cjs        # HTTP/WebSocket server
-│   ├── hook.js           # PostToolUse hook handler
-│   ├── client.html       # Browser client (3 view modes)
-│   ├── start-server.sh   # Server launcher
-│   └── stop-server.sh    # Server shutdown
+├── .claude-plugin/
+│   ├── marketplace.json  # Marketplace definition
+│   └── plugin.json       # Plugin metadata
+├── skills/
+│   └── happytrails/
+│       ├── SKILL.md      # Skill definition (entry point)
+│       └── scripts/
+│           ├── server.cjs        # HTTP/WebSocket server
+│           ├── hook.js           # PostToolUse hook handler
+│           ├── client.html       # Browser client (3 view modes)
+│           ├── start-server.sh   # Server launcher
+│           └── stop-server.sh    # Server shutdown
 └── docs/
     └── future-features.md
 ```
