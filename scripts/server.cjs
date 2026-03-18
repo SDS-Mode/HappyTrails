@@ -418,6 +418,16 @@ server.listen(PORT, HOST, () => {
   console.log(`[server] Session dir: ${SESSION_DIR}`);
   console.log(`[server] Log file: ${LOG_FILE}`);
   writeServerInfo(actualPort);
+  const url = `http://${URL_HOST}:${actualPort}/`;
+  console.log(JSON.stringify({
+    type: 'server-started',
+    port: actualPort,
+    host: HOST,
+    url_host: URL_HOST,
+    url,
+    session_dir: SESSION_DIR,
+    log_file: LOG_FILE,
+  }));
   startWatcher();
   startIdleTimeout();
   startOwnerPidMonitor();
