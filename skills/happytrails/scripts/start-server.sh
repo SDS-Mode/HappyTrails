@@ -72,18 +72,24 @@ else
   fi
 fi
 case "${OSTYPE:-}" in
-  msys*|cygwin*|mingw*) OWNER_PID="" ;;
+  msys*|cygwin*|mingw*)
+    OWNER_PID=""
+    # Write launcher's PPID to lock file for Windows fallback detection
+    # The server polls this PID since process.kill(pid,0) works on Windows Node.js
+    LOCK_FILE="${SESSION_DIR}/.owner.lock"
+    echo "$PPID" > "$LOCK_FILE"
+    ;;
 esac
 
 if [[ "$FOREGROUND" == "true" ]]; then
   echo "$$" > "$PID_FILE"
   [[ -n "$ACTIVE_FILE" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
-  env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" node server.cjs
+  env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" HAPPYTRAILS_LOCK_FILE="${LOCK_FILE:-}" node server.cjs
   [[ -n "$ACTIVE_FILE" ]] && rm -f "$ACTIVE_FILE"
   exit $?
 fi
 
-nohup env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" node server.cjs > "$SERVER_LOG" 2>&1 &
+nohup env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" HAPPYTRAILS_LOCK_FILE="${LOCK_FILE:-}" node server.cjs > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 disown "$SERVER_PID" 2>/dev/null
 echo "$SERVER_PID" > "$PID_FILE"
