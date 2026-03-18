@@ -1,0 +1,4 @@
+node_modules/
+.happytrails/
+.superpowers/
+*.log
