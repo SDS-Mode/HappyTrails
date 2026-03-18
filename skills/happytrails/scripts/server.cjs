@@ -436,13 +436,22 @@ function startIdleTimeout() {
 
 function startOwnerPidMonitor() {
   if (!OWNER_PID) return;
-  setInterval(() => {
-    try {
-      process.kill(OWNER_PID, 0);
-    } catch (_) {
+  const FAST_INTERVAL = 5000;
+  const SLOW_INTERVAL = 30000;
+  const FAST_DURATION = 5 * 60 * 1000;
+  const startTime = Date.now();
+
+  function check() {
+    if (!isOwnerAlive()) {
       shutdown(`owner process ${OWNER_PID} no longer running`);
+      return;
     }
-  }, 60 * 1000).unref();
+    const elapsed = Date.now() - startTime;
+    const interval = elapsed < FAST_DURATION ? FAST_INTERVAL : SLOW_INTERVAL;
+    setTimeout(check, interval).unref();
+  }
+
+  setTimeout(check, FAST_INTERVAL).unref();
 }
 
 // =============================================================================
