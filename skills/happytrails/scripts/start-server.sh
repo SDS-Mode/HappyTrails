@@ -49,6 +49,8 @@ LOG_FILE="${SESSION_DIR}/log.jsonl"
 PID_FILE="${SESSION_DIR}/.server.pid"
 SERVER_LOG="${SESSION_DIR}/.server.log"
 
+ACTIVE_FILE="${PROJECT_DIR:+${PROJECT_DIR}/.happytrails/.active}"
+
 mkdir -p "$SESSION_DIR"
 
 if [[ -f "$PID_FILE" ]]; then
@@ -69,7 +71,9 @@ esac
 
 if [[ "$FOREGROUND" == "true" ]]; then
   echo "$$" > "$PID_FILE"
+  [[ -n "$ACTIVE_FILE" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
   env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" node server.cjs
+  [[ -n "$ACTIVE_FILE" ]] && rm -f "$ACTIVE_FILE"
   exit $?
 fi
 
@@ -92,6 +96,7 @@ for i in {1..50}; do
       echo "{\"error\": \"Server started but was killed. Retry with: $SCRIPT_DIR/start-server.sh${PROJECT_DIR:+ --project-dir $PROJECT_DIR} --host $BIND_HOST --url-host $URL_HOST --foreground\"}"
       exit 1
     fi
+    [[ -n "$ACTIVE_FILE" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
     grep "server-started" "$SERVER_LOG" | head -1
     exit 0
   fi
