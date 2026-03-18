@@ -124,13 +124,18 @@ Single-page HTML app served by the server.
 
 ```
 HappyTrails/
-├── SKILL.md                # Skill definition and instructions
-├── scripts/
-│   ├── server.cjs          # Node.js HTTP/WebSocket server
-│   ├── hook.js             # PostToolUse hook handler
-│   ├── client.html         # Browser client (frame + CSS + JS)
-│   ├── start-server.sh     # Server launcher
-│   └── stop-server.sh      # Server shutdown
+├── .claude-plugin/
+│   ├── marketplace.json    # Marketplace definition
+│   └── plugin.json         # Plugin metadata
+├── skills/
+│   └── happytrails/
+│       ├── SKILL.md        # Skill definition and instructions
+│       └── scripts/
+│           ├── server.cjs      # Node.js HTTP/WebSocket server
+│           ├── hook.js         # PostToolUse hook handler
+│           ├── client.html     # Browser client (frame + CSS + JS)
+│           ├── start-server.sh # Server launcher
+│           └── stop-server.sh  # Server shutdown
 └── docs/
     ├── superpowers/
     │   ├── specs/           # Design specs
