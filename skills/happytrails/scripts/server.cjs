@@ -358,6 +358,17 @@ function writeServerStopped(reason) {
 }
 
 function shutdown(reason) {
+  // Remove .active pointer so hook stops writing
+  try {
+    const happytrailsDir = path.dirname(SESSION_DIR);
+    const activePath = path.join(happytrailsDir, '.active');
+    const activeContent = fs.readFileSync(activePath, 'utf-8').trim();
+    // Only remove if it points to our log file (avoids race with new session)
+    if (activeContent === LOG_FILE) {
+      fs.unlinkSync(activePath);
+    }
+  } catch (_) {}
+
   writeServerStopped(reason);
   process.exit(0);
 }
@@ -379,13 +390,14 @@ function ensureSessionDir() {
 }
 
 function startIdleTimeout() {
-  const IDLE_MS = 30 * 60 * 1000; // 30 minutes
+  const IDLE_MS = Number(process.env.HAPPYTRAILS_IDLE_TIMEOUT) || 30 * 60 * 1000;
+  const CHECK_MS = Math.min(IDLE_MS, 60 * 1000);
   setInterval(() => {
     const idleMs = Date.now() - lastActivityTime;
     if (idleMs >= IDLE_MS) {
       shutdown('idle timeout');
     }
-  }, 60 * 1000).unref();
+  }, CHECK_MS).unref();
 }
 
 function startOwnerPidMonitor() {
