@@ -78,6 +78,40 @@ const SESSION_DIR = process.env.HAPPYTRAILS_DIR || '/tmp/happytrails';
 const LOG_FILE = process.env.HAPPYTRAILS_LOG || path.join(SESSION_DIR, 'log.jsonl');
 const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTRAILS_OWNER_PID) : null;
 
+let ownerStartTime = null;
+
+function getProcessStartTime(pid) {
+  try {
+    // Linux: /proc/<pid>/stat field 22
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf-8');
+    // Handle comm field with spaces/parens: find last ')' then split
+    const afterComm = stat.slice(stat.lastIndexOf(')') + 2);
+    const fields = afterComm.split(' ');
+    return fields[19]; // field 22 is index 19 after skipping pid, comm, state (3 fields)
+  } catch (_) {}
+  try {
+    // macOS/Linux fallback: ps
+    const { execSync } = require('child_process');
+    return execSync(`ps -o lstart= -p ${pid}`, { encoding: 'utf-8', timeout: 2000 }).trim();
+  } catch (_) {}
+  return null;
+}
+
+function isOwnerAlive() {
+  try {
+    process.kill(OWNER_PID, 0);
+  } catch (_) {
+    return false;
+  }
+  if (ownerStartTime !== null) {
+    const currentStartTime = getProcessStartTime(OWNER_PID);
+    if (currentStartTime !== null && currentStartTime !== ownerStartTime) {
+      return false; // PID recycled
+    }
+  }
+  return true;
+}
+
 // =============================================================================
 // Section 3: HTTP Handler
 // =============================================================================
@@ -419,6 +453,14 @@ ensureSessionDir();
 
 // Initialize file offset from current log file size
 loadHistory(); // sets fileOffset to current end of file
+
+// Capture owner process start time for PID recycling detection
+if (OWNER_PID) {
+  ownerStartTime = getProcessStartTime(OWNER_PID);
+  if (ownerStartTime) {
+    console.log(`[server] Owner PID ${OWNER_PID} start time captured`);
+  }
+}
 
 const server = http.createServer(handleHttp);
 server.on('upgrade', handleUpgrade);
