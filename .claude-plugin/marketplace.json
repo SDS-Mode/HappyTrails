@@ -8,7 +8,7 @@
     {
       "name": "happytrails",
       "description": "Live browser-based viewer for all agent tool activity with three switchable view modes",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "source": "./"
     }
   ]
