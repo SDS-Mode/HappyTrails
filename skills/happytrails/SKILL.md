@@ -40,8 +40,10 @@ invocable_by:
 3. If the hook IS already registered, start the server:
 
    ```bash
-   <SKILL_DIR>/scripts/start-server.sh --project-dir <CWD>
+   <SKILL_DIR>/scripts/start-server.sh --project-dir <CWD> --owner-pid <PPID>
    ```
+
+   Replace `<PPID>` with the PID of the current Claude Code process (typically available as `$PPID` in the bash environment).
 
    Save `session_dir` from the JSON response.
 
@@ -54,6 +56,6 @@ invocable_by:
 - The hook command is stable — it never changes between sessions. Register it once.
 - The hook discovers the active log file via `<project>/.happytrails/.active`. When no session is running, the hook exits silently with no overhead.
 - Do NOT include `HAPPYTRAILS_LOG` in the hook command — the hook resolves the log path dynamically.
-- The server auto-exits after 30 minutes of inactivity
+- The server auto-exits when the owner process (Claude Code) exits, or after 30 minutes of inactivity
 - Session files persist in `<project>/.happytrails/` for later reference
 - Add `.happytrails/` to `.gitignore` if not already there
