@@ -77,6 +77,7 @@ const URL_HOST = process.env.HAPPYTRAILS_URL_HOST || (HOST === '127.0.0.1' ? 'lo
 const SESSION_DIR = process.env.HAPPYTRAILS_DIR || '/tmp/happytrails';
 const LOG_FILE = process.env.HAPPYTRAILS_LOG || path.join(SESSION_DIR, 'log.jsonl');
 const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTRAILS_OWNER_PID) : null;
+const LOCK_FILE = process.env.HAPPYTRAILS_LOCK_FILE || null;
 
 let ownerStartTime = null;
 
@@ -97,18 +98,48 @@ function getProcessStartTime(pid) {
   return null;
 }
 
-function isOwnerAlive() {
+let lockFilePid = null;
+
+function initLockFilePid() {
+  if (!LOCK_FILE) return;
   try {
-    process.kill(OWNER_PID, 0);
+    lockFilePid = Number(fs.readFileSync(LOCK_FILE, 'utf-8').trim());
+    if (!lockFilePid || isNaN(lockFilePid)) lockFilePid = null;
+  } catch (_) {
+    lockFilePid = null;
+  }
+}
+
+function isLockFilePidAlive() {
+  if (lockFilePid === null) return null; // Not applicable
+  try {
+    process.kill(lockFilePid, 0);
+    return true;
   } catch (_) {
     return false;
   }
-  if (ownerStartTime !== null) {
-    const currentStartTime = getProcessStartTime(OWNER_PID);
-    if (currentStartTime !== null && currentStartTime !== ownerStartTime) {
-      return false; // PID recycled
+}
+
+function isOwnerAlive() {
+  // PID-based check (Linux/macOS)
+  if (OWNER_PID) {
+    try {
+      process.kill(OWNER_PID, 0);
+    } catch (_) {
+      return false;
     }
+    if (ownerStartTime !== null) {
+      const currentStartTime = getProcessStartTime(OWNER_PID);
+      if (currentStartTime !== null && currentStartTime !== ownerStartTime) {
+        return false;
+      }
+    }
+    return true;
   }
+  // Lock file PID fallback (Windows)
+  const lockAlive = isLockFilePidAlive();
+  if (lockAlive !== null) return lockAlive;
+  // No monitoring available
   return true;
 }
 
@@ -435,7 +466,7 @@ function startIdleTimeout() {
 }
 
 function startOwnerPidMonitor() {
-  if (!OWNER_PID) return;
+  if (!OWNER_PID && lockFilePid === null) return;
   const FAST_INTERVAL = 5000;
   const SLOW_INTERVAL = 30000;
   const FAST_DURATION = 5 * 60 * 1000;
@@ -462,6 +493,8 @@ ensureSessionDir();
 
 // Initialize file offset from current log file size
 loadHistory(); // sets fileOffset to current end of file
+
+initLockFilePid();
 
 // Capture owner process start time for PID recycling detection
 if (OWNER_PID) {
