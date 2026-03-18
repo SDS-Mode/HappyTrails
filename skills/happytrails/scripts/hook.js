@@ -41,7 +41,7 @@ process.stdin.on('end', () => {
     session_id: data.session_id || null,
     tool: data.tool_name || 'unknown',
     input: data.tool_input || {},
-    output: data.tool_result || {},
+    output: data.tool_response || {},
     cwd: cwd
   };
 
