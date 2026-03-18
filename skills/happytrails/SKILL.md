@@ -18,15 +18,10 @@ Live browser-based visibility into all agent tool activity.
 
 ## Starting a Session
 
-1. Run the server:
+1. Check if the PostToolUse hook is already registered in `.claude/settings.json`.
+   Look for a hook whose command contains `scripts/hook.js` from this skill.
 
-   ```bash
-   <SKILL_DIR>/scripts/start-server.sh --project-dir <CWD>
-   ```
-
-   Save `session_dir` and `log_file` from the JSON response.
-
-2. Register the PostToolUse hook by adding this to `.claude/settings.json`:
+2. If the hook is NOT registered, add it to `.claude/settings.json`:
 
    ```json
    {
@@ -37,7 +32,7 @@ Live browser-based visibility into all agent tool activity.
            "hooks": [
              {
                "type": "command",
-               "command": "HAPPYTRAILS_LOG=\"<LOG_FILE>\" node <SKILL_DIR>/scripts/hook.js",
+               "command": "node <SKILL_DIR>/scripts/hook.js",
                "timeout": 5
              }
            ]
@@ -47,24 +42,37 @@ Live browser-based visibility into all agent tool activity.
    }
    ```
 
-   Replace `<LOG_FILE>` with the `log_file` from step 1.
    Replace `<SKILL_DIR>` with this skill's base directory.
 
-3. Tell the user to open the URL in their browser.
+   **Important:** If you just registered the hook for the first time, tell the user:
+   "HappyTrails hook registered. Please restart Claude Code once for the hook to take effect, then run `/happytrails` again."
+   Do NOT proceed with server startup — the hook won't work until after restart.
 
-4. Inform the user that all tool activity will now appear in the browser.
+3. If the hook IS already registered, start the server:
+
+   ```bash
+   <SKILL_DIR>/scripts/start-server.sh --project-dir <CWD>
+   ```
+
+   Save `session_dir` from the JSON response.
+
+4. Tell the user to open the URL in their browser.
+
+5. Inform the user that all tool activity will now appear in the browser.
 
 ## Stopping a Session
 
 When the user invokes `/happytrails-stop`:
 
-1. Remove the PostToolUse hook entry from `.claude/settings.json`
-2. Run: `<SKILL_DIR>/scripts/stop-server.sh <SESSION_DIR>`
-3. Confirm to the user that capture has stopped
+1. Run: `<SKILL_DIR>/scripts/stop-server.sh <SESSION_DIR>`
+2. Do NOT remove the hook from `.claude/settings.json` — it is stable and reusable across sessions.
+3. Confirm to the user that capture has stopped.
 
 ## Important
 
-- The hook must be removed on stop — leaving it active without a server causes silent errors
+- The hook command is stable — it never changes between sessions. Register it once.
+- The hook discovers the active log file via `<project>/.happytrails/.active`. When no session is running, the hook exits silently with no overhead.
+- Do NOT include `HAPPYTRAILS_LOG` in the hook command — the hook resolves the log path dynamically.
 - The server auto-exits after 30 minutes of inactivity
 - Session files persist in `<project>/.happytrails/` for later reference
 - Add `.happytrails/` to `.gitignore` if not already there
