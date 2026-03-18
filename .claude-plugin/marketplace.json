@@ -1,0 +1,15 @@
+{
+  "name": "happytrails-marketplace",
+  "description": "Marketplace for HappyTrails skill",
+  "owner": {
+    "name": "RCellar"
+  },
+  "plugins": [
+    {
+      "name": "happytrails",
+      "description": "Live browser-based viewer for all agent tool activity with three switchable view modes",
+      "version": "1.0.0",
+      "source": "./"
+    }
+  ]
+}
