@@ -1,22 +1,11 @@
 ---
 name: happytrails
-description: Live browser-based viewer for all agent tool activity — streams every command, read, write, edit, search, and more to an infinite-scroll HTML pane with three switchable view modes
+description: Start live browser-based viewer for all agent tool activity — streams every command, read, write, edit, search, and more to an infinite-scroll HTML pane with three switchable view modes
 invocable_by:
   - user
-aliases:
-  - happytrails-start
-  - happytrails-stop
-triggers:
-  - happytrails
-  - happytrails-start
-  - happytrails-stop
 ---
 
-# HappyTrails
-
-Live browser-based visibility into all agent tool activity.
-
-## Starting a Session
+# HappyTrails — Start Session
 
 1. Check if the PostToolUse hook is already registered in `.claude/settings.json`.
    Look for a hook whose command contains `scripts/hook.js` from this skill.
@@ -59,14 +48,6 @@ Live browser-based visibility into all agent tool activity.
 4. Tell the user to open the URL in their browser.
 
 5. Inform the user that all tool activity will now appear in the browser.
-
-## Stopping a Session
-
-When the user invokes `/happytrails-stop`:
-
-1. Run: `<SKILL_DIR>/scripts/stop-server.sh <SESSION_DIR>`
-2. Do NOT remove the hook from `.claude/settings.json` — it is stable and reusable across sessions.
-3. Confirm to the user that capture has stopped.
 
 ## Important
 
