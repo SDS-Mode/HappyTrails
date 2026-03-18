@@ -33,15 +33,17 @@ HappyTrails is a standalone Claude Code skill. Clone or download this repo, then
 
 Invoke `/happytrails` or `/happytrails-start` in Claude Code. The skill will:
 
-1. Start the server on a random high port
-2. Register a `PostToolUse` hook to capture all tool activity
+1. Register a stable `PostToolUse` hook (first time only — requires one restart)
+2. Start the server on a random high port
 3. Provide a URL to open in your browser
 
 All subsequent tool calls are captured automatically — no further action needed.
 
+The hook is registered once and reused across sessions. It discovers the active log file dynamically via a `.happytrails/.active` pointer, so no restart is needed after the first time.
+
 ### Stop a session
 
-Invoke `/happytrails-stop`. The skill will remove the hook and shut down the server.
+Invoke `/happytrails-stop`. The skill will shut down the server. The hook remains registered but is inert when no session is running.
 
 ### Manual usage
 
