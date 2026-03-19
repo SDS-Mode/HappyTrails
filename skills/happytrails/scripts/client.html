@@ -310,6 +310,106 @@
       display: inline-block;
     }
 
+    /* Export menu */
+    #menu-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+
+    #menu-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    #export-panel {
+      display: none;
+      position: fixed;
+      top: 45px;
+      right: 16px;
+      z-index: 200;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 12px 16px;
+      min-width: 220px;
+    }
+
+    #export-panel.open {
+      display: block;
+    }
+
+    .export-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .export-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .export-checkbox input {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .export-hint {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    .export-hint.visible {
+      display: block;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .export-btn {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .export-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
     /* Log container */
     #log-container {
       margin-top: 125px;
@@ -527,6 +627,23 @@
   <div id="header">
     <h1>HappyTrails</h1>
     <div id="status-dot" title="Disconnected"></div>
+    <button id="menu-btn" title="Menu">⋯</button>
+  </div>
+
+  <div id="export-panel">
+    <div class="export-title">Export</div>
+    <label class="export-checkbox">
+      <input type="checkbox" id="export-filters" checked /> Apply current filters
+    </label>
+    <label class="export-checkbox">
+      <input type="checkbox" id="export-search" checked /> Apply current search
+    </label>
+    <div class="export-hint" id="export-hint">Exporting all entries</div>
+    <div class="export-buttons">
+      <button class="export-btn" data-format="jsonl">JSONL</button>
+      <button class="export-btn" data-format="html">HTML</button>
+      <button class="export-btn" data-format="text">Text</button>
+    </div>
   </div>
 
   <div id="mode-bar">
@@ -662,6 +779,151 @@
 
         updateClearAllVisibility();
         renderAll();
+      });
+
+      // ── Export ────────────────────────────────────────────────────────────
+      function getExportEntries() {
+        const useFilters = document.getElementById('export-filters').checked;
+        const useSearch = document.getElementById('export-search').checked;
+
+        if (!useFilters && !useSearch) return entries.slice();
+
+        return entries.filter(function (entry) {
+          if (useFilters) {
+            const tool = (entry.tool || 'UNKNOWN').toLowerCase();
+            if (!activeToolTypes.has(tool)) return false;
+            if (statusFilter === 'success' && isFailure(entry)) return false;
+            if (statusFilter === 'failure' && !isFailure(entry)) return false;
+          }
+          if (useSearch && searchRegex) {
+            const toolName = entry.tool || '';
+            const summary = getToolSummary(entry);
+            const output = getOutputText(entry);
+            if (!searchRegex.test(toolName) && !searchRegex.test(summary) && !searchRegex.test(output)) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      function exportJSONL(exportEntries) {
+        const lines = exportEntries.map(function (e) { return JSON.stringify(e); });
+        return lines.join('\n') + '\n';
+      }
+
+      function exportPlainText(exportEntries) {
+        const divider = '─'.repeat(40);
+        return exportEntries.map(function (entry) {
+          const tool = (entry.tool || 'UNKNOWN').toUpperCase();
+          const time = entry.timestamp ? formatTime(entry.timestamp) : '--:--:--';
+          const summary = getToolSummary(entry);
+          const output = getOutputText(entry);
+          const exitCode = getExitCode(entry);
+          const parts = ['[' + tool + '] ' + time];
+          if (summary) parts.push('$ ' + summary);
+          if (output) parts.push(output);
+          if (exitCode !== null) parts.push('exit: ' + exitCode);
+          parts.push(divider);
+          return parts.join('\n');
+        }).join('\n');
+      }
+
+      function exportHTML(exportEntries, includeHighlights) {
+        const savedRegex = searchRegex;
+        if (!includeHighlights) searchRegex = null;
+
+        const styles = document.querySelector('style').textContent;
+        let bodyContent = '';
+        const mode = currentMode;
+        const containerClass = mode === 'raw' ? ' class="raw-mode"' : '';
+
+        exportEntries.forEach(function (entry) {
+          let el;
+          if (mode === 'cards') {
+            el = renderCard(entry);
+            el.classList.add('expanded');
+          } else if (mode === 'raw') {
+            el = renderRaw(entry);
+          } else {
+            el = renderVerbose(entry);
+          }
+          bodyContent += el.outerHTML + '\n';
+        });
+
+        searchRegex = savedRegex;
+
+        return '<!DOCTYPE html>\n<html lang="en">\n<head>\n'
+          + '<meta charset="UTF-8">\n'
+          + '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+          + '<title>HappyTrails Export</title>\n'
+          + '<style>\n' + styles + '\n'
+          + '#log-container { margin-top: 0; height: auto; overflow: visible; }\n'
+          + '.entry-card.expanded .card-body { display: block; }\n'
+          + '</style>\n</head>\n<body>\n'
+          + '<div id="log-container"' + containerClass + '>\n'
+          + bodyContent
+          + '</div>\n</body>\n</html>';
+      }
+
+      function downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      const menuBtn = document.getElementById('menu-btn');
+      const exportPanel = document.getElementById('export-panel');
+
+      menuBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        exportPanel.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!exportPanel.contains(e.target) && e.target !== menuBtn) {
+          exportPanel.classList.remove('open');
+        }
+      });
+
+      const exportFiltersCheckbox = document.getElementById('export-filters');
+      const exportSearchCheckbox = document.getElementById('export-search');
+      const exportHint = document.getElementById('export-hint');
+
+      function updateExportHint() {
+        if (!exportFiltersCheckbox.checked && !exportSearchCheckbox.checked) {
+          exportHint.classList.add('visible');
+        } else {
+          exportHint.classList.remove('visible');
+        }
+      }
+
+      exportFiltersCheckbox.addEventListener('change', updateExportHint);
+      exportSearchCheckbox.addEventListener('change', updateExportHint);
+
+      document.querySelectorAll('.export-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const exportEntries = getExportEntries();
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          const format = btn.dataset.format;
+          const includeHighlights = document.getElementById('export-search').checked;
+
+          if (format === 'jsonl') {
+            downloadFile(exportJSONL(exportEntries), 'happytrails-' + timestamp + '.jsonl', 'application/jsonl');
+          } else if (format === 'html') {
+            downloadFile(exportHTML(exportEntries, includeHighlights), 'happytrails-' + timestamp + '.html', 'text/html');
+          } else if (format === 'text') {
+            downloadFile(exportPlainText(exportEntries), 'happytrails-' + timestamp + '.txt', 'text/plain');
+          }
+
+          exportPanel.classList.remove('open');
+        });
       });
 
       // ── Mode switching ─────────────────────────────────────────────────────
