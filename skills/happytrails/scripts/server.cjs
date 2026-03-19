@@ -79,6 +79,34 @@ const LOG_FILE = process.env.HAPPYTRAILS_LOG || path.join(SESSION_DIR, 'log.json
 const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTRAILS_OWNER_PID) : null;
 const LOCK_FILE = process.env.HAPPYTRAILS_LOCK_FILE || null;
 
+const DEFAULT_ICON = '🥾';
+const HAPPYTRAILS_ICON = (function () {
+  const val = (process.env.HAPPYTRAILS_ICON || '').trim();
+  if (!val) return DEFAULT_ICON;
+  if (val.startsWith('data:image/')) return val;
+  if (val.length <= 8) return val; // Assume emoji
+  return DEFAULT_ICON; // Invalid — too long and not a data URI
+})();
+
+function deriveTabTitle() {
+  try {
+    const segments = LOG_FILE.split(path.sep);
+    const htIndex = segments.indexOf('.happytrails');
+    if (htIndex > 0) {
+      const project = segments[htIndex - 1];
+      const sessionId = path.basename(path.dirname(LOG_FILE));
+      if (project && sessionId) return project + '_' + sessionId;
+    }
+    // Fallback: grandparent_parent
+    const sessionId = path.basename(path.dirname(LOG_FILE));
+    const project = path.basename(path.dirname(path.dirname(LOG_FILE)));
+    if (project && sessionId && project !== '.') return project + '_' + sessionId;
+  } catch (_) {}
+  return 'HappyTrails';
+}
+
+const TAB_TITLE = deriveTabTitle();
+
 let ownerStartTime = null;
 
 function getProcessStartTime(pid) {
