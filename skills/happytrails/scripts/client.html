@@ -812,7 +812,50 @@
       const statusDot = document.getElementById('status-dot');
       const modeButtons = document.querySelectorAll('.mode-btn');
       const searchInput = document.getElementById('search-input');
+      const searchBtn = document.getElementById('search-btn');
+      const searchOverlay = document.getElementById('search-overlay');
+      const searchCloseBtn = document.getElementById('search-close-btn');
+      const searchClearBtn = document.getElementById('search-clear-btn');
+      const headerEl = document.getElementById('header');
       let searchDebounceTimer = null;
+
+      // ── Search overlay ────────────────────────────────────────────────────
+      function openSearchOverlay() {
+        // Close tool filter dropdown if open
+        toolFilterPanel.classList.remove('open');
+        searchOverlay.classList.add('open');
+        headerEl.classList.add('overlay-active');
+        searchInput.focus();
+      }
+
+      function closeSearchOverlay() {
+        searchOverlay.classList.remove('open');
+        headerEl.classList.remove('overlay-active');
+      }
+
+      searchBtn.addEventListener('click', openSearchOverlay);
+
+      searchCloseBtn.addEventListener('click', closeSearchOverlay);
+
+      searchClearBtn.addEventListener('click', function () {
+        searchText = '';
+        searchRegex = null;
+        searchInput.value = '';
+        searchInput.classList.remove('invalid');
+        searchBtn.classList.remove('has-search');
+        renderAll();
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && searchOverlay.classList.contains('open')) {
+          closeSearchOverlay();
+          return;
+        }
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          openSearchOverlay();
+        }
+      });
 
       searchInput.addEventListener('input', function () {
         if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
@@ -821,17 +864,18 @@
           if (searchText === '') {
             searchRegex = null;
             searchInput.classList.remove('invalid');
+            searchBtn.classList.remove('has-search');
           } else {
             try {
               searchRegex = new RegExp(searchText, 'i');
               searchInput.classList.remove('invalid');
+              searchBtn.classList.add('has-search');
             } catch (e) {
               searchInput.classList.add('invalid');
               return;
             }
           }
           renderAll();
-          updateClearAllVisibility();
         }, 200);
       });
 
@@ -841,6 +885,7 @@
 
       toolFilterBtn.addEventListener('click', function (e) {
         e.stopPropagation();
+        closeSearchOverlay();
         toolFilterPanel.classList.toggle('open');
       });
 
@@ -871,32 +916,8 @@
           statusFilter = btn.dataset.status;
           statusButtons.forEach(function (b) { b.classList.remove('active'); });
           btn.classList.add('active');
-          updateClearAllVisibility();
           renderAll();
         });
-      });
-
-      document.getElementById('clear-all-btn').addEventListener('click', function () {
-        // Reset search
-        searchText = '';
-        searchRegex = null;
-        searchInput.value = '';
-        searchInput.classList.remove('invalid');
-
-        // Reset tool types
-        knownToolTypes.forEach(function (t) { activeToolTypes.add(t); });
-        const cbs = document.querySelectorAll('#tool-filter-panel input[type="checkbox"]');
-        cbs.forEach(function (cb) { cb.checked = true; });
-        document.getElementById('tool-toggle-all').textContent = 'Deselect all';
-        updateToolFilterButton();
-
-        // Reset status
-        statusFilter = 'all';
-        statusButtons.forEach(function (b) { b.classList.remove('active'); });
-        document.querySelector('.status-btn[data-status="all"]').classList.add('active');
-
-        updateClearAllVisibility();
-        renderAll();
       });
 
       // ── Export ────────────────────────────────────────────────────────────
@@ -1222,13 +1243,6 @@
         return false;
       }
 
-      function isAnyFilterActive() {
-        if (searchText !== '') return true;
-        if (statusFilter !== 'all') return true;
-        if (activeToolTypes.size !== knownToolTypes.size) return true;
-        return false;
-      }
-
       function updateToolTypeDropdown() {
         const panel = document.getElementById('tool-filter-panel');
         const toggleAll = document.getElementById('tool-toggle-all');
@@ -1269,16 +1283,6 @@
           btn.classList.remove('has-filter');
         } else {
           btn.classList.add('has-filter');
-        }
-        updateClearAllVisibility();
-      }
-
-      function updateClearAllVisibility() {
-        const btn = document.getElementById('clear-all-btn');
-        if (isAnyFilterActive()) {
-          btn.classList.add('visible');
-        } else {
-          btn.classList.remove('visible');
         }
       }
 
