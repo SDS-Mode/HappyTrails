@@ -994,6 +994,12 @@
           return ((output.stdout || '') + (output.stderr || '')).trim();
         }
         if (output.content !== undefined) {
+          if (Array.isArray(output.content)) {
+            return output.content
+              .filter(function (c) { return c && c.text; })
+              .map(function (c) { return c.text; })
+              .join('\n');
+          }
           return String(output.content);
         }
         if (output.message !== undefined) {

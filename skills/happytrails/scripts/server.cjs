@@ -356,6 +356,7 @@ function readNewEntries() {
       try {
         const entry = JSON.parse(trimmed);
         broadcast({ type: 'entry', entry });
+        touchActivity();
       } catch (_) {
         // Skip malformed lines
       }
