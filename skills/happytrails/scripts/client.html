@@ -529,6 +529,50 @@
       border: 1px solid rgba(255, 59, 48, 0.3);
     }
 
+    /* === Agent Stats === */
+    .agent-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 6px 10px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      border-left: 3px solid #d2a8ff;
+      margin-top: 4px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .agent-stats .agent-stat-value {
+      color: var(--text-primary);
+    }
+
+    .agent-stats-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .agent-stats-badge.completed {
+      background: rgba(52, 199, 89, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+    }
+
+    .agent-stats-badge.failed {
+      background: rgba(255, 59, 48, 0.15);
+      color: var(--error);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+    }
+
+    .agent-raw-stats {
+      color: #d2a8ff;
+      opacity: 0.8;
+    }
+
     /* === Cards Mode === */
     .entry-card {
       background: var(--bg-secondary);
@@ -1176,6 +1220,70 @@
         return div.innerHTML;
       }
 
+      // ── Agent Stats Helpers ──────────────────────────────────────────────
+      function isAgentEntry(entry) {
+        return (entry.tool || '').toLowerCase() === 'agent';
+      }
+
+      function formatDuration(ms) {
+        if (ms == null) return null;
+        if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+        const minutes = Math.floor(ms / 60000);
+        const seconds = Math.round((ms % 60000) / 1000);
+        return minutes + 'm ' + seconds + 's';
+      }
+
+      function formatTokens(n) {
+        if (n == null) return null;
+        return n.toLocaleString();
+      }
+
+      function getAgentStats(entry) {
+        if (!isAgentEntry(entry)) return null;
+        const output = entry.output || {};
+        const input = entry.input || {};
+        const duration = output.totalDurationMs != null ? formatDuration(output.totalDurationMs) : null;
+        const tools = output.totalToolUseCount != null ? output.totalToolUseCount + ' tool' + (output.totalToolUseCount !== 1 ? 's' : '') : null;
+        const tokens = output.totalTokens != null ? formatTokens(output.totalTokens) : null;
+        const model = input.model || null;
+        const status = output.status || null;
+        // Return null if no stats are available
+        if (!duration && !tools && !tokens && !model && !status) return null;
+        return { duration, tools, tokens, model, status };
+      }
+
+      function renderAgentStats(stats) {
+        const bar = document.createElement('div');
+        bar.className = 'agent-stats';
+        if (stats.status) {
+          const badge = document.createElement('span');
+          badge.className = 'agent-stats-badge ' + (stats.status === 'completed' ? 'completed' : 'failed');
+          badge.textContent = (stats.status === 'completed' ? '✓ ' : '✗ ') + stats.status;
+          bar.appendChild(badge);
+        }
+        if (stats.duration) {
+          const span = document.createElement('span');
+          span.innerHTML = '⏱ <span class="agent-stat-value">' + escapeHtml(stats.duration) + '</span>';
+          bar.appendChild(span);
+        }
+        if (stats.tools) {
+          const span = document.createElement('span');
+          span.innerHTML = '🔧 <span class="agent-stat-value">' + escapeHtml(stats.tools) + '</span>';
+          bar.appendChild(span);
+        }
+        if (stats.tokens) {
+          const span = document.createElement('span');
+          span.innerHTML = '📊 <span class="agent-stat-value">' + escapeHtml(stats.tokens) + ' tokens</span>';
+          bar.appendChild(span);
+        }
+        if (stats.model) {
+          const span = document.createElement('span');
+          span.innerHTML = '🤖 <span class="agent-stat-value">' + escapeHtml(stats.model) + '</span>';
+          bar.appendChild(span);
+        }
+        return bar;
+      }
+
       function highlightText(text, regex) {
         if (!regex) {
           const span = document.createElement('span');
@@ -1333,6 +1441,11 @@
           el.appendChild(badge);
         }
 
+        const agentStats = getAgentStats(entry);
+        if (agentStats) {
+          el.appendChild(renderAgentStats(agentStats));
+        }
+
         return el;
       }
 
@@ -1372,6 +1485,30 @@
           meta.appendChild(exitEl);
         }
 
+        if (isAgentEntry(entry)) {
+          const agentStats = getAgentStats(entry);
+          if (agentStats) {
+            if (agentStats.status) {
+              const statusEl = document.createElement('span');
+              statusEl.className = 'card-exit ' + (agentStats.status === 'completed' ? 'success' : 'failure');
+              statusEl.textContent = (agentStats.status === 'completed' ? '✓' : '✗');
+              meta.appendChild(statusEl);
+            }
+            if (agentStats.duration) {
+              const durEl = document.createElement('span');
+              durEl.className = 'card-time';
+              durEl.textContent = agentStats.duration;
+              meta.appendChild(durEl);
+            }
+            if (agentStats.tools) {
+              const toolsEl = document.createElement('span');
+              toolsEl.className = 'card-time';
+              toolsEl.textContent = agentStats.tools;
+              meta.appendChild(toolsEl);
+            }
+          }
+        }
+
         const chevron = document.createElement('span');
         chevron.className = 'card-chevron';
         chevron.textContent = '▼';
@@ -1387,6 +1524,27 @@
         } else {
           body.textContent = '(no output)';
         }
+
+        if (isAgentEntry(entry)) {
+          const agentStats = getAgentStats(entry);
+          if (agentStats && (agentStats.tokens || agentStats.model)) {
+            const statsLine = document.createElement('div');
+            statsLine.className = 'agent-stats';
+            statsLine.style.marginTop = '8px';
+            if (agentStats.tokens) {
+              const span = document.createElement('span');
+              span.innerHTML = '📊 <span class="agent-stat-value">' + escapeHtml(agentStats.tokens) + ' tokens</span>';
+              statsLine.appendChild(span);
+            }
+            if (agentStats.model) {
+              const span = document.createElement('span');
+              span.innerHTML = '🤖 <span class="agent-stat-value">' + escapeHtml(agentStats.model) + '</span>';
+              statsLine.appendChild(span);
+            }
+            body.appendChild(statsLine);
+          }
+        }
+
         el.appendChild(body);
 
         header.addEventListener('click', function () {
@@ -1406,6 +1564,23 @@
         const line = document.createElement('span');
         line.innerHTML = '<span class="raw-prompt">$ </span>' + escapeHtml(summary) + '\n' + escapeHtml(outputText);
         el.appendChild(line);
+
+        if (isAgentEntry(entry)) {
+          const agentStats = getAgentStats(entry);
+          if (agentStats) {
+            const parts = [];
+            if (agentStats.duration) parts.push(agentStats.duration);
+            if (agentStats.tools) parts.push(agentStats.tools);
+            if (agentStats.tokens) parts.push(agentStats.tokens + ' tokens');
+            if (agentStats.model) parts.push(agentStats.model);
+            if (parts.length > 0) {
+              const statsLine = document.createElement('div');
+              statsLine.className = 'agent-raw-stats';
+              statsLine.textContent = '[agent: ' + parts.join(' · ') + ']';
+              el.appendChild(statsLine);
+            }
+          }
+        }
 
         return el;
       }
