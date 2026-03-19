@@ -1361,11 +1361,16 @@
           if (msg.type === 'entry') {
             appendEntry(msg.entry);
           } else if (msg.type === 'history') {
+            // Clear existing state to avoid duplicates on reconnect
+            entries.length = 0;
+            knownToolTypes.clear();
+            activeToolTypes.clear();
             const hist = msg.entries || [];
             hist.forEach(function (e) {
               entries.push(e);
               trackToolType(e);
             });
+            updateToolTypeDropdown();
             renderAll();
           }
         };
