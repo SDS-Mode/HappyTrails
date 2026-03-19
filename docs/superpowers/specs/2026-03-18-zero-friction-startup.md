@@ -14,6 +14,10 @@ Additionally, simplify SKILL.md and add duplicate session detection and automati
 
 ## Design
 
+### Precondition: stdin schema parity
+
+This design assumes plugin-declared hooks receive the same stdin JSON schema as `settings.json` hooks — specifically that `data.cwd` is present, since `hook.js` uses it to locate `.active`. This assumption is based on the superpowers plugin using the same hook mechanism successfully. It must be verified before implementation by testing a plugin hook and inspecting the stdin payload.
+
 ### 1. Plugin-level hook registration
 
 Ship a `hooks/hooks.json` file at `<repo-root>/hooks/hooks.json` — the same convention used by the superpowers plugin (`claude-plugins-official/superpowers/<version>/hooks/hooks.json`):
@@ -67,7 +71,7 @@ On startup, before creating a new session:
 1. Check if `<project>/.happytrails/.active` exists
 2. If it does, read the log path to derive the session directory
 3. Check if that session's `.server.pid` process is still running
-4. If running, stop it (same logic as `stop-server.sh`: SIGTERM, poll, SIGKILL fallback)
+4. If running, stop it (same logic as `stop-server.sh`: SIGTERM, poll, SIGKILL fallback). If the PID file exists but the process is no longer running, treat it as a stale PID file and clean up without sending signals.
 5. Remove the stale `.active` file
 6. Proceed with new session startup
 
@@ -93,7 +97,7 @@ With plugin hooks handling registration, the following are removed:
 
 Existing users will have a `node ~/.happytrails/hook.js` entry in their global `settings.json` from prior versions. With the new plugin hook, both hooks fire on every tool call, producing duplicate log entries.
 
-To handle this automatically, add a deduplication guard to `hook.js`: before appending, check if the last line in the log file has the same `session_id` and `timestamp` (within a small tolerance, e.g., 50ms) as the current entry. If so, skip the write. This is cheap (single `stat` + small read from end of file) and handles the double-firing case silently regardless of whether the user reads release notes.
+To handle this automatically, add a deduplication guard to `hook.js`: before appending, compare the current entry's `tool` name and a hash of `tool_input` against the last line in the log file. Both hook invocations receive identical stdin from Claude Code for the same tool event, so these fields are deterministic — no timestamp tolerance needed. If they match, skip the write. This is cheap (read last line of file, compare two fields) and handles the double-firing case silently regardless of whether the user reads release notes.
 
 Release notes should still instruct users to remove the old hook entry from `~/.claude/settings.json` for cleanliness, but the dedup guard ensures correctness without user action.
 
