@@ -676,6 +676,38 @@
     (function () {
       'use strict';
 
+      // ── Icon & Title ────────────────────────────────────────────────────
+      function applyIcon(icon) {
+        var el = document.getElementById('header-icon');
+        if (!el) return;
+        if (icon && icon.indexOf('data:image/') === 0) {
+          el.textContent = '';
+          var img = document.createElement('img');
+          img.src = icon;
+          img.alt = 'HappyTrails';
+          el.appendChild(img);
+        } else {
+          el.textContent = icon || '🥾';
+        }
+        // Set favicon
+        var link = document.querySelector('link[rel="icon"]');
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        if (icon && icon.indexOf('data:image/') === 0) {
+          link.href = icon;
+        } else {
+          var emoji = icon || '🥾';
+          link.href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">' + emoji + '</text></svg>');
+        }
+      }
+
+      function applyTitle(title) {
+        if (title) document.title = title;
+      }
+
       // ── State ──────────────────────────────────────────────────────────────
       const entries = [];
       let currentMode = localStorage.getItem('ht-mode') || 'verbose';
@@ -1378,6 +1410,9 @@
             });
             updateToolTypeDropdown();
             renderAll();
+            // Apply icon and title from server (takes precedence over injected values)
+            if (msg.icon) applyIcon(msg.icon);
+            if (msg.tab_title) applyTitle(msg.tab_title);
           }
         };
 
@@ -1394,6 +1429,8 @@
       }
 
       // ── Init ───────────────────────────────────────────────────────────────
+      if (window.__HT_ICON) applyIcon(window.__HT_ICON);
+      if (window.__HT_TAB_TITLE) applyTitle(window.__HT_TAB_TITLE);
       renderAll();
       connect();
 
