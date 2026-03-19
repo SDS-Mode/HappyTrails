@@ -831,6 +831,7 @@
       function closeSearchOverlay() {
         searchOverlay.classList.remove('open');
         headerEl.classList.remove('overlay-active');
+        searchInput.blur();
       }
 
       searchBtn.addEventListener('click', openSearchOverlay);
@@ -838,6 +839,7 @@
       searchCloseBtn.addEventListener('click', closeSearchOverlay);
 
       searchClearBtn.addEventListener('click', function () {
+        // Clear search but keep overlay open for a new search
         searchText = '';
         searchRegex = null;
         searchInput.value = '';
