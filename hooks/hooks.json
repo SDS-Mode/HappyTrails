@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/happytrails/scripts/hook.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
