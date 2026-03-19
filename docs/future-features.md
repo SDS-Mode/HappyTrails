@@ -50,3 +50,19 @@ Extend the hooks system to remain active even when the HappyTrails server isn't 
 - **Proposed enhancement:** Option to keep hooks always active even when server isn't running
 - **Benefits:** Enable offline log collection for post-hoc review, useful for long-running or background processes
 - **Note:** This is a documented decision point for future consideration. Implementation would require careful consideration of hook lifecycle management and cleanup.
+
+## 7. Auto-Open Browser
+
+Automatically open the HappyTrails URL in the user's default browser after server start, eliminating the manual copy/click step.
+
+## 8. Session Directory Cleanup
+
+Prune old `.happytrails/<session-id>/` directories to prevent unbounded disk usage.
+
+- Age-based cleanup (e.g., remove sessions older than 7 days)
+- Count-based cleanup (e.g., keep only the last N sessions)
+- Run cleanup on session start, not as a background process
+
+## 9. Stop Skill Path Fix
+
+`happytrails-stop/SKILL.md` currently references `<SKILL_DIR>/../happytrails/scripts/stop-server.sh` — a fragile relative path across skill directories. Replace with a more robust resolution mechanism.
