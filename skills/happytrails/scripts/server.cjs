@@ -185,6 +185,15 @@ try {
   clientHtml = '<!DOCTYPE html><html><body><h1>HappyTrails</h1><p>client.html not found</p></body></html>';
 }
 
+function safeJsonEmbed(val) {
+  return JSON.stringify(val).replace(/</g, '\\u003c');
+}
+
+// Inject icon and tab title into client HTML (one-time mutation at startup)
+clientHtml = clientHtml
+  .replace('<title>HappyTrails</title>', '<title>' + TAB_TITLE.replace(/</g, '&lt;') + '</title>')
+  .replace('<!--HAPPYTRAILS_ICON-->', '<script>window.__HT_ICON=' + safeJsonEmbed(HAPPYTRAILS_ICON) + ';window.__HT_TAB_TITLE=' + safeJsonEmbed(TAB_TITLE) + ';</script>');
+
 let lastActivityTime = Date.now();
 
 function touchActivity() {
