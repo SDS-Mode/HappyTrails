@@ -20,6 +20,6 @@ invocable_by:
    <SKILL_DIR>/../happytrails/scripts/stop-server.sh <SESSION_DIR>
    ```
 
-4. Do NOT remove the hook from `.claude/settings.json` — it is stable and reusable.
+4. Do NOT remove the hook — it is managed by the plugin and reused across sessions.
 
 5. Confirm to the user that capture has stopped.
