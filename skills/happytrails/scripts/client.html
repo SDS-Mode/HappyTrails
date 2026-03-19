@@ -851,6 +851,10 @@
       let knownToolTypes = new Set();  // All tool types seen so far
       let statusFilter = 'all';       // 'all' | 'success' | 'failure'
 
+      // ── Agent Grouping State ────────────────────────────────────────────
+      const agentChildren = new Map();  // agentId → entry[]
+      const agentIdToEntry = new Map(); // agentId → parent Agent entry
+
       // ── DOM refs ───────────────────────────────────────────────────────────
       const container = document.getElementById('log-container');
       const statusDot = document.getElementById('status-dot');
@@ -1318,15 +1322,36 @@
 
       // ── Filter Pipeline ────────────────────────────────────────────────
       function passesFilters(entry) {
-        // Tool type filter
+        // Child entries are hidden from top-level flow — rendered under their parent
+        if (isChildEntry(entry)) return false;
+
+        // Agent entries: visible if agent type is active OR any child matches filters
+        if (isAgentEntry(entry)) {
+          const agentTypeActive = activeToolTypes.has('agent');
+          const childMatch = anyChildMatchesFilters(entry);
+          if (!agentTypeActive && !childMatch) return false;
+
+          // Status filter on the agent itself
+          if (statusFilter === 'success' && isFailure(entry)) return false;
+          if (statusFilter === 'failure' && !isFailure(entry)) return false;
+
+          // Search: match agent itself OR any child
+          if (searchRegex) {
+            const toolName = entry.tool || '';
+            const summary = getToolSummary(entry);
+            const output = getOutputText(entry);
+            const agentMatches = searchRegex.test(toolName) || searchRegex.test(summary) || searchRegex.test(output);
+            if (!agentMatches && !childMatch) return false;
+          }
+
+          return true;
+        }
+
+        // Top-level non-agent entries: normal filtering
         const tool = (entry.tool || 'UNKNOWN').toLowerCase();
         if (!activeToolTypes.has(tool)) return false;
-
-        // Status filter
         if (statusFilter === 'success' && isFailure(entry)) return false;
         if (statusFilter === 'failure' && !isFailure(entry)) return false;
-
-        // Search regex
         if (searchRegex) {
           const toolName = entry.tool || '';
           const summary = getToolSummary(entry);
@@ -1335,7 +1360,6 @@
             return false;
           }
         }
-
         return true;
       }
 
@@ -1394,6 +1418,71 @@
         } else {
           btn.classList.add('has-filter');
         }
+      }
+
+      // ── Agent Grouping ──────────────────────────────────────────────────────
+      function indexAgentEntry(entry) {
+        if (isAgentEntry(entry)) {
+          const agentId = (entry.output || {}).agentId;
+          if (agentId) {
+            if (!agentChildren.has(agentId)) agentChildren.set(agentId, []);
+            agentIdToEntry.set(agentId, entry);
+          }
+        }
+      }
+
+      function indexChildEntry(entry) {
+        const parentId = entry.parent_agent_id;
+        if (!parentId) return false;
+        // Only group under known top-level Agent entries (not nested agents)
+        if (!agentIdToEntry.has(parentId)) return false;
+        const children = agentChildren.get(parentId);
+        if (children) {
+          children.push(entry);
+          return true;
+        }
+        return false;
+      }
+
+      function isChildEntry(entry) {
+        const parentId = entry.parent_agent_id;
+        if (!parentId) return false;
+        return agentIdToEntry.has(parentId);
+      }
+
+      function getAgentChildren(entry) {
+        if (!isAgentEntry(entry)) return [];
+        const agentId = (entry.output || {}).agentId;
+        if (!agentId) return [];
+        return agentChildren.get(agentId) || [];
+      }
+
+      function getFilteredAgentChildren(entry) {
+        return getAgentChildren(entry).filter(function (child) {
+          return passesChildFilters(child);
+        });
+      }
+
+      function passesChildFilters(entry) {
+        const tool = (entry.tool || 'UNKNOWN').toLowerCase();
+        if (!activeToolTypes.has(tool)) return false;
+        if (statusFilter === 'success' && isFailure(entry)) return false;
+        if (statusFilter === 'failure' && !isFailure(entry)) return false;
+        if (searchRegex) {
+          const toolName = entry.tool || '';
+          const summary = getToolSummary(entry);
+          const output = getOutputText(entry);
+          if (!searchRegex.test(toolName) && !searchRegex.test(summary) && !searchRegex.test(output)) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function anyChildMatchesFilters(entry) {
+        return getAgentChildren(entry).some(function (child) {
+          return passesChildFilters(child);
+        });
       }
 
       // ── Renderers ──────────────────────────────────────────────────────────
@@ -1627,10 +1716,18 @@
       // ── Append single entry ────────────────────────────────────────────────
       function appendEntry(entry) {
         entries.push(entry);
+        indexAgentEntry(entry);
+        const isChild = indexChildEntry(entry);
         const isNewType = trackToolType(entry);
 
         if (isNewType) {
           updateToolTypeDropdown();
+        }
+
+        // Child entries: re-render to update parent's children container
+        if (isChild) {
+          renderAll();
+          return;
         }
 
         if (!passesFilters(entry)) return;
@@ -1670,10 +1767,14 @@
             entries.length = 0;
             knownToolTypes.clear();
             activeToolTypes.clear();
+            agentChildren.clear();
+            agentIdToEntry.clear();
             const hist = msg.entries || [];
             hist.forEach(function (e) {
               entries.push(e);
               trackToolType(e);
+              indexAgentEntry(e);
+              indexChildEntry(e);
             });
             updateToolTypeDropdown();
             renderAll();
