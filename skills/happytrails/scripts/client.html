@@ -254,6 +254,62 @@
       background: var(--bg-tertiary);
     }
 
+    /* Status filter */
+    .status-toggle {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .status-btn {
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .status-btn:last-child {
+      border-right: none;
+    }
+
+    .status-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .status-btn.active {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    /* Clear all */
+    #clear-all-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      display: none;
+    }
+
+    #clear-all-btn:hover {
+      background: var(--bg-tertiary);
+    }
+
+    #clear-all-btn.visible {
+      display: inline-block;
+    }
+
     /* Log container */
     #log-container {
       margin-top: 125px;
@@ -487,6 +543,12 @@
         <div class="dropdown-toggle-all" id="tool-toggle-all">Deselect all</div>
       </div>
     </div>
+    <div class="status-toggle">
+      <button class="status-btn active" data-status="all">All</button>
+      <button class="status-btn" data-status="success">✓</button>
+      <button class="status-btn" data-status="failure">✗</button>
+    </div>
+    <button id="clear-all-btn">Clear all</button>
   </div>
 
   <div id="log-container">
@@ -534,6 +596,7 @@
             }
           }
           renderAll();
+          updateClearAllVisibility();
         }, 200);
       });
 
@@ -564,6 +627,40 @@
         const cbs = toolFilterPanel.querySelectorAll('input[type="checkbox"]');
         cbs.forEach(function (cb) { cb.checked = activeToolTypes.has(cb.dataset.tool); });
         updateToolFilterButton();
+        renderAll();
+      });
+
+      const statusButtons = document.querySelectorAll('.status-btn');
+      statusButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          statusFilter = btn.dataset.status;
+          statusButtons.forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          updateClearAllVisibility();
+          renderAll();
+        });
+      });
+
+      document.getElementById('clear-all-btn').addEventListener('click', function () {
+        // Reset search
+        searchText = '';
+        searchRegex = null;
+        searchInput.value = '';
+        searchInput.classList.remove('invalid');
+
+        // Reset tool types
+        knownToolTypes.forEach(function (t) { activeToolTypes.add(t); });
+        const cbs = document.querySelectorAll('#tool-filter-panel input[type="checkbox"]');
+        cbs.forEach(function (cb) { cb.checked = true; });
+        document.getElementById('tool-toggle-all').textContent = 'Deselect all';
+        updateToolFilterButton();
+
+        // Reset status
+        statusFilter = 'all';
+        statusButtons.forEach(function (b) { b.classList.remove('active'); });
+        document.querySelector('.status-btn[data-status="all"]').classList.add('active');
+
+        updateClearAllVisibility();
         renderAll();
       });
 
@@ -791,7 +888,12 @@
       }
 
       function updateClearAllVisibility() {
-        // Implemented in Task 5
+        const btn = document.getElementById('clear-all-btn');
+        if (isAnyFilterActive()) {
+          btn.classList.add('visible');
+        } else {
+          btn.classList.remove('visible');
+        }
       }
 
       // ── Renderers ──────────────────────────────────────────────────────────
