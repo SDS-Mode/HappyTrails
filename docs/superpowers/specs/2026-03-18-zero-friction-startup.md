@@ -16,7 +16,7 @@ Additionally, simplify SKILL.md and add duplicate session detection and automati
 
 ### 1. Plugin-level hook registration
 
-Ship a `hooks/hooks.json` file in the plugin root:
+Ship a `hooks/hooks.json` file at `<repo-root>/hooks/hooks.json` — the same convention used by the superpowers plugin (`claude-plugins-official/superpowers/<version>/hooks/hooks.json`):
 
 ```json
 {
@@ -41,18 +41,19 @@ Ship a `hooks/hooks.json` file in the plugin root:
 
 The hook fires on every tool call across all projects. When no HappyTrails session is active, `hook.js` finds no `.active` file and exits immediately — zero overhead.
 
+The 5-second timeout is inherited from the current `settings.json` configuration. This is generous for an append-only write but matches existing behavior.
+
 ### 2. SKILL.md simplification
 
-The current SKILL.md has 7 steps with branching logic (check hook, copy hook, register or start, restart gate). The new SKILL.md reduces to 3 linear steps:
+The current SKILL.md has 7 steps with branching logic (check hook, copy hook, register or start, restart gate). The new SKILL.md reduces to 2 linear steps:
 
-1. Check for an existing active session — read `<CWD>/.happytrails/.active`. If it exists and the server is still running, stop it first.
-2. Start the server:
+1. Start the server:
    ```bash
    <SKILL_DIR>/scripts/start-server.sh --project-dir <CWD> --owner-pid <PPID>
    ```
-3. Tell the user to open the URL.
+2. Tell the user to open the URL.
 
-No hook registration. No copy step. No restart gate. No branching.
+No hook registration. No copy step. No restart gate. No branching. Duplicate session detection is handled by `start-server.sh` (section 3), not by the agent.
 
 The "Important" notes section is reduced to:
 - The server auto-exits when Claude Code exits, or after 30 minutes of inactivity
@@ -60,7 +61,7 @@ The "Important" notes section is reduced to:
 
 ### 3. Duplicate session detection
 
-Add detection to `start-server.sh` so running `/happytrails` twice doesn't orphan a server.
+Add detection to `start-server.sh` so running `/happytrails` twice doesn't orphan a server. `start-server.sh` is the sole owner of this logic — SKILL.md does not check for active sessions.
 
 On startup, before creating a new session:
 1. Check if `<project>/.happytrails/.active` exists
@@ -75,8 +76,8 @@ This lives in `start-server.sh` — deterministic shell logic, not agent-interpr
 ### 4. Automatic `.gitignore` management
 
 Add a check to `start-server.sh` after creating the session directory:
-- If `<project>/.gitignore` exists but doesn't contain `.happytrails/`, append it
-- If `<project>/.gitignore` doesn't exist, create it with `.happytrails/` as the sole entry
+- If `<project>/.gitignore` exists but doesn't contain an exact line `.happytrails/`, append it. Other variants (`.happytrails`, `/.happytrails/`, `.happytrails/*`) are the user's responsibility — exact line match for `.happytrails/` is sufficient.
+- If `<project>/.gitignore` doesn't exist, create it with `.happytrails/` as the sole entry.
 
 This removes the manual "add to .gitignore" note from SKILL.md.
 
@@ -84,30 +85,34 @@ This removes the manual "add to .gitignore" note from SKILL.md.
 
 With plugin hooks handling registration, the following are removed:
 
-- **`~/.happytrails/` directory and copy mechanism** — SKILL.md no longer creates this directory or copies `hook.js` to it
+- **`~/.happytrails/` directory and copy mechanism** — SKILL.md no longer creates this directory or copies `hook.js` to it. Existing `~/.happytrails/` directories on user machines are left as harmless orphaned files — no active cleanup.
 - **Hook registration logic in SKILL.md** — the check-settings, copy, register, restart-gate flow
 - **All "Important" notes** about stable paths, hook copying, and version-independent registration
 
-### 6. Migration: remove stale settings.json hook
+### 6. Migration: deduplicate hook firing
 
-Existing users will have a `node ~/.happytrails/hook.js` entry in their global `settings.json` from prior versions. With the new plugin hook, this would cause double-firing.
+Existing users will have a `node ~/.happytrails/hook.js` entry in their global `settings.json` from prior versions. With the new plugin hook, both hooks fire on every tool call, producing duplicate log entries.
 
-This is a one-time migration concern, not a permanent part of SKILL.md. Handle it via:
-- Release notes instructing users to remove the old hook entry from `~/.claude/settings.json`
-- Optionally, a one-time migration script shipped with the release
+To handle this automatically, add a deduplication guard to `hook.js`: before appending, check if the last line in the log file has the same `session_id` and `timestamp` (within a small tolerance, e.g., 50ms) as the current entry. If so, skip the write. This is cheap (single `stat` + small read from end of file) and handles the double-firing case silently regardless of whether the user reads release notes.
 
-After the current user population has upgraded, this concern is retired.
+Release notes should still instruct users to remove the old hook entry from `~/.claude/settings.json` for cleanliness, but the dedup guard ensures correctness without user action.
+
+This adds `hook.js` to the changed files list. The dedup guard is a permanent, low-cost safety net — not a temporary migration shim.
+
+Note: the `.active` file is now the sole discovery path for the hook. The `HAPPYTRAILS_LOG` env var fallback (previously set via `settings.json` hook configuration) is no longer relevant since plugin hooks don't set environment variables. `hook.js` still supports the env var as a fallback but it will not be set in practice.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
 | `hooks/hooks.json` | **New** — plugin-level PostToolUse hook declaration |
-| `skills/happytrails/SKILL.md` | **Rewrite** — remove all hook logic, reduce to 3 linear steps |
+| `skills/happytrails/SKILL.md` | **Rewrite** — remove all hook logic, reduce to 2 linear steps |
+| `skills/happytrails/scripts/hook.js` | **Modify** — add deduplication guard for migration double-firing |
 | `skills/happytrails/scripts/start-server.sh` | **Modify** — add duplicate session detection, add `.gitignore` management |
+| `skills/happytrails-stop/SKILL.md` | **Modify** — remove stale reference to `settings.json` hook |
 | `docs/future-features.md` | **Modify** — add auto-open browser, session cleanup, stop skill path fix |
 
-No changes to `hook.js`, `server.cjs`, `client.html`, `stop-server.sh`, or `happytrails-stop/SKILL.md`.
+No changes to `server.cjs`, `client.html`, or `stop-server.sh`.
 
 ## Out of Scope
 
@@ -124,4 +129,6 @@ These items are documented in `docs/future-features.md` for a future spec:
 3. Plugin version update: run `/happytrails` after update — hook resolves to new version automatically
 4. `.gitignore`: verify `.happytrails/` is added on first session start, not duplicated on subsequent starts
 5. No active session: verify `hook.js` exits silently when no `.active` file exists (zero overhead)
-6. Verify old `settings.json` hook entry causes double-firing (validates need for migration note)
+6. Migration: install new version with existing `settings.json` hook entry — verify no duplicate log entries (dedup guard works)
+7. Migration: remove old `settings.json` hook entry — verify single clean log entries continue
+8. Verify `hook.js` still works correctly when `cwd` is provided in stdin JSON (plugin hooks use the same stdin schema as settings.json hooks)
