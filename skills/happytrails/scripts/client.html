@@ -172,6 +172,88 @@
       }
     }
 
+    /* Tool type dropdown */
+    .dropdown-wrap {
+      position: relative;
+    }
+
+    .dropdown-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .dropdown-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .dropdown-btn.has-filter {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .dropdown-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 180px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 200;
+      padding: 6px 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .dropdown-panel.open {
+      display: block;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .dropdown-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .dropdown-item input[type="checkbox"] {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .dropdown-toggle-all {
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--accent);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+      user-select: none;
+    }
+
+    .dropdown-toggle-all:hover {
+      background: var(--bg-tertiary);
+    }
+
     /* Log container */
     #log-container {
       margin-top: 125px;
@@ -399,6 +481,12 @@
 
   <div id="toolbar">
     <input type="text" id="search-input" placeholder="Search (regex)..." />
+    <div class="dropdown-wrap" id="tool-filter-wrap">
+      <button class="dropdown-btn" id="tool-filter-btn">Tools ▾</button>
+      <div class="dropdown-panel" id="tool-filter-panel">
+        <div class="dropdown-toggle-all" id="tool-toggle-all">Deselect all</div>
+      </div>
+    </div>
   </div>
 
   <div id="log-container">
@@ -447,6 +535,36 @@
           }
           renderAll();
         }, 200);
+      });
+
+      const toolFilterBtn = document.getElementById('tool-filter-btn');
+      const toolFilterPanel = document.getElementById('tool-filter-panel');
+      const toolToggleAll = document.getElementById('tool-toggle-all');
+
+      toolFilterBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toolFilterPanel.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!toolFilterPanel.contains(e.target) && e.target !== toolFilterBtn) {
+          toolFilterPanel.classList.remove('open');
+        }
+      });
+
+      toolToggleAll.addEventListener('click', function () {
+        const allSelected = activeToolTypes.size === knownToolTypes.size;
+        if (allSelected) {
+          activeToolTypes.clear();
+          toolToggleAll.textContent = 'Select all';
+        } else {
+          knownToolTypes.forEach(function (t) { activeToolTypes.add(t); });
+          toolToggleAll.textContent = 'Deselect all';
+        }
+        const cbs = toolFilterPanel.querySelectorAll('input[type="checkbox"]');
+        cbs.forEach(function (cb) { cb.checked = activeToolTypes.has(cb.dataset.tool); });
+        updateToolFilterButton();
+        renderAll();
       });
 
       // ── Mode switching ─────────────────────────────────────────────────────
@@ -629,7 +747,51 @@
       }
 
       function updateToolTypeDropdown() {
-        // Implemented in Task 4
+        const panel = document.getElementById('tool-filter-panel');
+        const toggleAll = document.getElementById('tool-toggle-all');
+        const items = panel.querySelectorAll('.dropdown-item');
+        items.forEach(function (item) { item.remove(); });
+
+        const sorted = Array.from(knownToolTypes).sort();
+        sorted.forEach(function (tool) {
+          const item = document.createElement('label');
+          item.className = 'dropdown-item';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = activeToolTypes.has(tool);
+          cb.dataset.tool = tool;
+          cb.addEventListener('change', function () {
+            if (cb.checked) {
+              activeToolTypes.add(tool);
+            } else {
+              activeToolTypes.delete(tool);
+            }
+            updateToolFilterButton();
+            renderAll();
+          });
+          const label = document.createTextNode(tool.charAt(0).toUpperCase() + tool.slice(1));
+          item.appendChild(cb);
+          item.appendChild(label);
+          panel.appendChild(item);
+        });
+
+        updateToolFilterButton();
+      }
+
+      function updateToolFilterButton() {
+        const btn = document.getElementById('tool-filter-btn');
+        const allSelected = activeToolTypes.size === knownToolTypes.size;
+        btn.textContent = allSelected ? 'Tools ▾' : 'Tools (' + activeToolTypes.size + ') ▾';
+        if (allSelected) {
+          btn.classList.remove('has-filter');
+        } else {
+          btn.classList.add('has-filter');
+        }
+        updateClearAllVisibility();
+      }
+
+      function updateClearAllVisibility() {
+        // Implemented in Task 5
       }
 
       // ── Renderers ──────────────────────────────────────────────────────────
