@@ -573,6 +573,50 @@
       opacity: 0.8;
     }
 
+    /* === Agent Children === */
+    .agent-children-wrap {
+      border-left: 2px solid rgba(210, 168, 255, 0.3);
+      margin-left: 12px;
+      padding-left: 12px;
+      margin-bottom: 8px;
+    }
+
+    .agent-children-toggle {
+      font-size: 11px;
+      color: #d2a8ff;
+      cursor: pointer;
+      padding: 4px 0;
+      user-select: none;
+      opacity: 0.8;
+    }
+
+    .agent-children-toggle:hover {
+      opacity: 1;
+    }
+
+    .agent-children-body {
+      display: none;
+    }
+
+    .agent-children-wrap.expanded .agent-children-body {
+      display: block;
+    }
+
+    .agent-children-body .entry-verbose,
+    .agent-children-body .entry-card,
+    .agent-children-body .entry-raw {
+      opacity: 0.75;
+      font-size: 0.92em;
+    }
+
+    .agent-children-body .entry-verbose {
+      margin-bottom: 12px;
+    }
+
+    .agent-children-body .entry-card {
+      margin-bottom: 6px;
+    }
+
     /* === Cards Mode === */
     .entry-card {
       background: var(--bg-secondary);
@@ -1288,6 +1332,61 @@
         return bar;
       }
 
+      function renderAgentChildren(entry) {
+        const allChildren = getAgentChildren(entry);
+        if (allChildren.length === 0) return null;
+
+        const filteredChildren = getFilteredAgentChildren(entry);
+        if (filteredChildren.length === 0 && !isAnyFilterActive()) return null;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'agent-children-wrap';
+
+        const toggle = document.createElement('div');
+        toggle.className = 'agent-children-toggle';
+
+        const isFiltered = isAnyFilterActive();
+        if (isFiltered && filteredChildren.length !== allChildren.length) {
+          toggle.textContent = '▸ ' + filteredChildren.length + ' of ' + allChildren.length + ' tool call' + (allChildren.length !== 1 ? 's' : '');
+        } else {
+          toggle.textContent = '▸ ' + allChildren.length + ' tool call' + (allChildren.length !== 1 ? 's' : '');
+        }
+
+        if (filteredChildren.length === 0) {
+          toggle.textContent = '▸ 0 of ' + allChildren.length + ' tool call' + (allChildren.length !== 1 ? 's' : '') + ' match filters';
+          toggle.style.opacity = '0.4';
+          wrap.appendChild(toggle);
+          return wrap;
+        }
+
+        toggle.addEventListener('click', function () {
+          wrap.classList.toggle('expanded');
+          toggle.textContent = toggle.textContent.replace(/^[▸▾]/, wrap.classList.contains('expanded') ? '▾' : '▸');
+        });
+        wrap.appendChild(toggle);
+
+        const body = document.createElement('div');
+        body.className = 'agent-children-body';
+
+        const renderer = currentMode === 'cards' ? renderCard
+                       : currentMode === 'raw'   ? renderRaw
+                       :                            renderVerbose;
+
+        filteredChildren.forEach(function (child) {
+          body.appendChild(renderer(child));
+        });
+
+        wrap.appendChild(body);
+        return wrap;
+      }
+
+      function isAnyFilterActive() {
+        if (searchText !== '') return true;
+        if (statusFilter !== 'all') return true;
+        if (activeToolTypes.size !== knownToolTypes.size) return true;
+        return false;
+      }
+
       function highlightText(text, regex) {
         if (!regex) {
           const span = document.createElement('span');
@@ -1535,6 +1634,9 @@
           el.appendChild(renderAgentStats(agentStats));
         }
 
+        const childrenWrap = isAgentEntry(entry) ? renderAgentChildren(entry) : null;
+        if (childrenWrap) el.appendChild(childrenWrap);
+
         return el;
       }
 
@@ -1640,6 +1742,9 @@
           el.classList.toggle('expanded');
         });
 
+        const childrenWrap = isAgentEntry(entry) ? renderAgentChildren(entry) : null;
+        if (childrenWrap) el.appendChild(childrenWrap);
+
         return el;
       }
 
@@ -1670,6 +1775,9 @@
             }
           }
         }
+
+        const childrenWrap = isAgentEntry(entry) ? renderAgentChildren(entry) : null;
+        if (childrenWrap) el.appendChild(childrenWrap);
 
         return el;
       }
