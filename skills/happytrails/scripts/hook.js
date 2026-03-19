@@ -45,10 +45,35 @@ process.stdin.on('end', () => {
     cwd: cwd
   };
 
+  // Dedup guard: skip if last entry has same tool + input (handles double-firing
+  // when both settings.json hook and plugin hook are active during migration)
+  const inputStr = JSON.stringify(entry.input);
+  let isDup = false;
   try {
-    fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
+    const buf = Buffer.alloc(16384);
+    const fd = fs.openSync(logFile, 'r');
+    const stat = fs.fstatSync(fd);
+    const readStart = Math.max(0, stat.size - 16384);
+    const bytesRead = fs.readSync(fd, buf, 0, 16384, readStart);
+    fs.closeSync(fd);
+    const tail = buf.toString('utf-8', 0, bytesRead);
+    const lines = tail.split('\n').filter(l => l.trim());
+    if (lines.length > 0) {
+      const last = JSON.parse(lines[lines.length - 1]);
+      if (last.tool === entry.tool && JSON.stringify(last.input) === inputStr) {
+        isDup = true;
+      }
+    }
   } catch (e) {
-    // Silently fail — never block the agent
+    // On any error, proceed with write (safe default)
+  }
+
+  if (!isDup) {
+    try {
+      fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
+    } catch (e) {
+      // Silently fail — never block the agent
+    }
   }
 
   process.exit(0);
