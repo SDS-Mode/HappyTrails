@@ -434,6 +434,10 @@ function shutdown(reason) {
     }
   } catch (_) {}
 
+  // Clean up server runtime files
+  try { fs.unlinkSync(path.join(SESSION_DIR, '.server.pid')); } catch (_) {}
+  try { fs.unlinkSync(path.join(SESSION_DIR, '.server.log')); } catch (_) {}
+
   writeServerStopped(reason);
   process.exit(0);
 }
