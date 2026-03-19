@@ -45,6 +45,11 @@ process.stdin.on('end', () => {
     cwd: cwd
   };
 
+  // Passthrough subagent context for grouping
+  if (data.agent_id) entry.parent_agent_id = data.agent_id;
+  if (data.agent_type) entry.agent_type = data.agent_type;
+  if (data.permission_mode) entry.permission_mode = data.permission_mode;
+
   // Dedup guard: skip if last entry has same tool + input (handles double-firing
   // when both settings.json hook and plugin hook are active during migration)
   const inputStr = JSON.stringify(entry.input);
