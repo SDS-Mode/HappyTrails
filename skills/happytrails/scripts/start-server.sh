@@ -82,6 +82,18 @@ fi
 
 mkdir -p "$SESSION_DIR"
 
+# --- Automatic .gitignore management ---
+if [[ -n "$PROJECT_DIR" ]]; then
+  GITIGNORE="${PROJECT_DIR}/.gitignore"
+  if [[ -f "$GITIGNORE" ]]; then
+    if ! grep -qxF '.happytrails/' "$GITIGNORE"; then
+      echo '.happytrails/' >> "$GITIGNORE"
+    fi
+  else
+    echo '.happytrails/' > "$GITIGNORE"
+  fi
+fi
+
 cd "$SCRIPT_DIR"
 
 if [[ -n "$EXPLICIT_OWNER_PID" ]]; then
