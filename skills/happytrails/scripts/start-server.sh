@@ -53,13 +53,34 @@ SERVER_LOG="${SESSION_DIR}/.server.log"
 
 ACTIVE_FILE="${PROJECT_DIR:+${PROJECT_DIR}/.happytrails/.active}"
 
-mkdir -p "$SESSION_DIR"
-
-if [[ -f "$PID_FILE" ]]; then
-  old_pid=$(cat "$PID_FILE")
-  kill "$old_pid" 2>/dev/null
-  rm -f "$PID_FILE"
+# --- Duplicate session detection ---
+# If an active session exists, stop its server before starting a new one
+if [[ -n "$ACTIVE_FILE" && -f "$ACTIVE_FILE" ]]; then
+  OLD_LOG="$(cat "$ACTIVE_FILE" 2>/dev/null)"
+  if [[ -n "$OLD_LOG" ]]; then
+    OLD_SESSION_DIR="$(dirname "$OLD_LOG")"
+    OLD_PID_FILE="${OLD_SESSION_DIR}/.server.pid"
+    if [[ -f "$OLD_PID_FILE" ]]; then
+      old_pid=$(cat "$OLD_PID_FILE")
+      if kill -0 "$old_pid" 2>/dev/null; then
+        # Server is running — stop it
+        kill "$old_pid" 2>/dev/null
+        for i in {1..20}; do
+          if ! kill -0 "$old_pid" 2>/dev/null; then break; fi
+          sleep 0.1
+        done
+        if kill -0 "$old_pid" 2>/dev/null; then
+          kill -9 "$old_pid" 2>/dev/null || true
+          sleep 0.1
+        fi
+      fi
+      rm -f "$OLD_PID_FILE"
+    fi
+  fi
+  rm -f "$ACTIVE_FILE"
 fi
+
+mkdir -p "$SESSION_DIR"
 
 cd "$SCRIPT_DIR"
 
