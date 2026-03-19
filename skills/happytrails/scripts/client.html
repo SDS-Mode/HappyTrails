@@ -624,10 +624,46 @@
 <body>
 
   <div id="header">
-    <span id="header-icon" style="font-size:20px;line-height:1;flex-shrink:0;">🥾</span>
-    <div style="flex:1"></div>
-    <div id="status-dot" title="Disconnected"></div>
-    <button id="menu-btn" title="Menu">⋯</button>
+    <!-- Left group: mode buttons -->
+    <button class="mode-btn active" data-mode="verbose">Full</button>
+    <button class="mode-btn" data-mode="cards">Cards</button>
+    <button class="mode-btn" data-mode="raw">Raw</button>
+
+    <!-- Vertical divider -->
+    <div class="header-divider"></div>
+
+    <!-- Search icon button -->
+    <button id="search-btn" class="toolbar-btn" title="Search (/)">🔍</button>
+
+    <!-- Tool filter dropdown -->
+    <div class="dropdown-wrap" id="tool-filter-wrap">
+      <button class="dropdown-btn" id="tool-filter-btn">Tools ▾</button>
+      <div class="dropdown-panel" id="tool-filter-panel">
+        <div class="dropdown-toggle-all" id="tool-toggle-all">Deselect all</div>
+      </div>
+    </div>
+
+    <!-- Status filter toggle -->
+    <div class="status-toggle">
+      <button class="status-btn active" data-status="all">All</button>
+      <button class="status-btn" data-status="success">✓</button>
+      <button class="status-btn" data-status="failure">✗</button>
+    </div>
+
+    <!-- Right group: icon, status, menu -->
+    <div id="header-right">
+      <span id="header-icon" style="font-size:20px;line-height:1;flex-shrink:0;">🥾</span>
+      <div id="status-dot" title="Disconnected"></div>
+      <button id="menu-btn" title="Menu">⋯</button>
+    </div>
+  </div>
+
+  <!-- Search overlay (hidden by default) -->
+  <div id="search-overlay">
+    <span class="search-overlay-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Regex search..." />
+    <button id="search-clear-btn" class="toolbar-btn">Clear</button>
+    <button id="search-close-btn" class="toolbar-btn">✕</button>
   </div>
 
   <div id="export-panel">
@@ -644,28 +680,6 @@
       <button class="export-btn" data-format="html">HTML</button>
       <button class="export-btn" data-format="text">Text</button>
     </div>
-  </div>
-
-  <div id="mode-bar">
-    <button class="mode-btn active" data-mode="verbose">Full Verbose</button>
-    <button class="mode-btn" data-mode="cards">Structured Cards</button>
-    <button class="mode-btn" data-mode="raw">Raw Terminal</button>
-  </div>
-
-  <div id="toolbar">
-    <input type="text" id="search-input" placeholder="Search (regex)..." />
-    <div class="dropdown-wrap" id="tool-filter-wrap">
-      <button class="dropdown-btn" id="tool-filter-btn">Tools ▾</button>
-      <div class="dropdown-panel" id="tool-filter-panel">
-        <div class="dropdown-toggle-all" id="tool-toggle-all">Deselect all</div>
-      </div>
-    </div>
-    <div class="status-toggle">
-      <button class="status-btn active" data-status="all">All</button>
-      <button class="status-btn" data-status="success">✓</button>
-      <button class="status-btn" data-status="failure">✗</button>
-    </div>
-    <button id="clear-all-btn">Clear all</button>
   </div>
 
   <div id="log-container">
