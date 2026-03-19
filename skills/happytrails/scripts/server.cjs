@@ -269,7 +269,7 @@ function handleUpgrade(req, socket, head) {
 
   // Send history to newly connected client
   const history = loadHistory();
-  sendToSocket(socket, { type: 'history', entries: history });
+  sendToSocket(socket, { type: 'history', entries: history, icon: HAPPYTRAILS_ICON, tab_title: TAB_TITLE });
 
   let buf = head && head.length > 0 ? Buffer.from(head) : Buffer.alloc(0);
 
@@ -440,6 +440,8 @@ function writeServerInfo(port) {
     url,
     session_dir: SESSION_DIR,
     log_file: LOG_FILE,
+    icon: HAPPYTRAILS_ICON,
+    tab_title: TAB_TITLE,
   };
   try {
     fs.writeFileSync(SERVER_INFO_FILE, JSON.stringify(info, null, 2), 'utf-8');
