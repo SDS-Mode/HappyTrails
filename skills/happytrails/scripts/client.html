@@ -360,6 +360,13 @@
       let autoScroll = true;
       let ws = null;
 
+      // ── Filter/Search State ───────────────────────────────────────────────
+      let searchRegex = null;          // Compiled RegExp or null
+      let searchText = '';             // Raw search input value
+      let activeToolTypes = new Set(); // Tool types currently checked (all by default)
+      let knownToolTypes = new Set();  // All tool types seen so far
+      let statusFilter = 'all';       // 'all' | 'success' | 'failure'
+
       // ── DOM refs ───────────────────────────────────────────────────────────
       const container = document.getElementById('log-container');
       const statusDot = document.getElementById('status-dot');
@@ -466,6 +473,54 @@
         const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
+      }
+
+      // ── Filter Pipeline ────────────────────────────────────────────────
+      function passesFilters(entry) {
+        // Tool type filter
+        const tool = (entry.tool || 'UNKNOWN').toLowerCase();
+        if (!activeToolTypes.has(tool)) return false;
+
+        // Status filter
+        if (statusFilter === 'success' && isFailure(entry)) return false;
+        if (statusFilter === 'failure' && !isFailure(entry)) return false;
+
+        // Search regex
+        if (searchRegex) {
+          const toolName = entry.tool || '';
+          const summary = getToolSummary(entry);
+          const output = getOutputText(entry);
+          if (!searchRegex.test(toolName) && !searchRegex.test(summary) && !searchRegex.test(output)) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      function getVisibleEntries() {
+        return entries.filter(passesFilters);
+      }
+
+      function trackToolType(entry) {
+        const tool = (entry.tool || 'UNKNOWN').toLowerCase();
+        if (!knownToolTypes.has(tool)) {
+          knownToolTypes.add(tool);
+          activeToolTypes.add(tool);
+          return true; // New type discovered
+        }
+        return false;
+      }
+
+      function isAnyFilterActive() {
+        if (searchText !== '') return true;
+        if (statusFilter !== 'all') return true;
+        if (activeToolTypes.size !== knownToolTypes.size) return true;
+        return false;
+      }
+
+      function updateToolTypeDropdown() {
+        // Implemented in Task 4
       }
 
       // ── Renderers ──────────────────────────────────────────────────────────
@@ -599,11 +654,21 @@
           return;
         }
 
+        const visible = getVisibleEntries();
+
+        if (visible.length === 0) {
+          const noMatch = document.createElement('div');
+          noMatch.id = 'empty-state';
+          noMatch.textContent = 'No entries match current filters';
+          container.appendChild(noMatch);
+          return;
+        }
+
         const renderer = currentMode === 'cards' ? renderCard
                        : currentMode === 'raw'   ? renderRaw
-                       :                           renderVerbose;
+                       :                            renderVerbose;
 
-        entries.forEach(function (entry) {
+        visible.forEach(function (entry) {
           container.appendChild(renderer(entry));
         });
 
@@ -613,13 +678,20 @@
       // ── Append single entry ────────────────────────────────────────────────
       function appendEntry(entry) {
         entries.push(entry);
+        const isNewType = trackToolType(entry);
+
+        if (isNewType) {
+          updateToolTypeDropdown();
+        }
+
+        if (!passesFilters(entry)) return;
 
         const emptyState = document.getElementById('empty-state');
         if (emptyState) emptyState.remove();
 
         const renderer = currentMode === 'cards' ? renderCard
                        : currentMode === 'raw'   ? renderRaw
-                       :                           renderVerbose;
+                       :                            renderVerbose;
 
         container.appendChild(renderer(entry));
         scrollToBottom();
@@ -646,7 +718,10 @@
             appendEntry(msg.entry);
           } else if (msg.type === 'history') {
             const hist = msg.entries || [];
-            hist.forEach(function (e) { entries.push(e); });
+            hist.forEach(function (e) {
+              entries.push(e);
+              trackToolType(e);
+            });
             renderAll();
           }
         };
