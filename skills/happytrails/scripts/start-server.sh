@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the HappyTrails server and output connection info
-# Usage: start-server.sh [--project-dir <path>] [--host <bind-host>] [--url-host <display-host>] [--owner-pid <pid>] [--foreground] [--background]
+# Usage: start-server.sh [--project-dir <path>] [--host <bind-host>] [--url-host <display-host>] [--owner-pid <pid>] [--transcript-path <path>] [--foreground] [--background]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -10,12 +10,14 @@ FORCE_BACKGROUND="false"
 BIND_HOST="127.0.0.1"
 URL_HOST=""
 EXPLICIT_OWNER_PID=""
+TRANSCRIPT_PATH=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project-dir) PROJECT_DIR="$2"; shift 2 ;;
     --host) BIND_HOST="$2"; shift 2 ;;
     --url-host) URL_HOST="$2"; shift 2 ;;
     --owner-pid) EXPLICIT_OWNER_PID="$2"; shift 2 ;;
+    --transcript-path) TRANSCRIPT_PATH="$2"; shift 2 ;;
     --foreground|--no-daemon) FOREGROUND="true"; shift ;;
     --background|--daemon) FORCE_BACKGROUND="true"; shift ;;
     *) echo "{\"error\": \"Unknown argument: $1\"}"; exit 1 ;;
@@ -114,15 +116,21 @@ case "${OSTYPE:-}" in
     ;;
 esac
 
+if [[ -n "$TRANSCRIPT_PATH" ]]; then
+  HT_SOURCE="transcript"
+else
+  HT_SOURCE="hook"
+fi
+
 if [[ "$FOREGROUND" == "true" ]]; then
   echo "$$" > "$PID_FILE"
-  [[ -n "$ACTIVE_FILE" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
-  env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" HAPPYTRAILS_LOCK_FILE="${LOCK_FILE:-}" node server.cjs
+  [[ -n "$ACTIVE_FILE" && -z "$TRANSCRIPT_PATH" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
+  env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" HAPPYTRAILS_LOCK_FILE="${LOCK_FILE:-}" HAPPYTRAILS_SOURCE="$HT_SOURCE" HAPPYTRAILS_TRANSCRIPT_PATH="${TRANSCRIPT_PATH:-}" node server.cjs
   [[ -n "$ACTIVE_FILE" ]] && rm -f "$ACTIVE_FILE"
   exit $?
 fi
 
-nohup env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" HAPPYTRAILS_LOCK_FILE="${LOCK_FILE:-}" node server.cjs > "$SERVER_LOG" 2>&1 &
+nohup env HAPPYTRAILS_DIR="$SESSION_DIR" HAPPYTRAILS_LOG="$LOG_FILE" HAPPYTRAILS_HOST="$BIND_HOST" HAPPYTRAILS_URL_HOST="$URL_HOST" HAPPYTRAILS_OWNER_PID="$OWNER_PID" HAPPYTRAILS_LOCK_FILE="${LOCK_FILE:-}" HAPPYTRAILS_SOURCE="$HT_SOURCE" HAPPYTRAILS_TRANSCRIPT_PATH="${TRANSCRIPT_PATH:-}" node server.cjs > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 disown "$SERVER_PID" 2>/dev/null
 echo "$SERVER_PID" > "$PID_FILE"
@@ -141,7 +149,7 @@ for i in {1..50}; do
       echo "{\"error\": \"Server started but was killed. Retry with: $SCRIPT_DIR/start-server.sh${PROJECT_DIR:+ --project-dir $PROJECT_DIR} --host $BIND_HOST --url-host $URL_HOST --foreground\"}"
       exit 1
     fi
-    [[ -n "$ACTIVE_FILE" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
+    [[ -n "$ACTIVE_FILE" && -z "$TRANSCRIPT_PATH" ]] && echo "$LOG_FILE" > "$ACTIVE_FILE"
     grep "server-started" "$SERVER_LOG" | head -1
     exit 0
   fi
