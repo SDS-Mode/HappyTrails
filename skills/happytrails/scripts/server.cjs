@@ -404,18 +404,24 @@ let partialLine = '';
 let debounceTimer = null;
 
 function loadHistory() {
+  const watchFile = HAPPYTRAILS_SOURCE === 'transcript' ? TRANSCRIPT_PATH : LOG_FILE;
   try {
-    const stat = fs.statSync(LOG_FILE);
-    const data = fs.readFileSync(LOG_FILE, 'utf-8');
+    const stat = fs.statSync(watchFile);
+    const data = fs.readFileSync(watchFile, 'utf-8');
     fileOffset = stat.size;
     const entries = [];
-    for (const line of data.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        entries.push(JSON.parse(trimmed));
-      } catch (_) {
-        // Skip malformed lines
+    if (HAPPYTRAILS_SOURCE === 'transcript') {
+      for (const line of data.split('\n')) {
+        const entry = parseTranscriptLine(line);
+        if (entry) entries.push(entry);
+      }
+    } else {
+      for (const line of data.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          entries.push(JSON.parse(trimmed));
+        } catch (_) {}
       }
     }
     return entries;
@@ -429,20 +435,21 @@ function loadHistory() {
 }
 
 function readNewEntries() {
+  const watchFile = HAPPYTRAILS_SOURCE === 'transcript' ? TRANSCRIPT_PATH : LOG_FILE;
   try {
-    const stat = fs.statSync(LOG_FILE);
+    const stat = fs.statSync(watchFile);
     const fileSize = stat.size;
 
-    // Handle truncation
     if (fileSize < fileOffset) {
       console.log(`[server] Log file truncated, resetting offset`);
       fileOffset = 0;
       partialLine = '';
+      if (HAPPYTRAILS_SOURCE === 'transcript') pendingTools.clear();
     }
 
     if (fileSize <= fileOffset) return;
 
-    const fd = fs.openSync(LOG_FILE, 'r');
+    const fd = fs.openSync(watchFile, 'r');
     const chunkSize = fileSize - fileOffset;
     const buf = Buffer.alloc(chunkSize);
     fs.readSync(fd, buf, 0, chunkSize, fileOffset);
@@ -451,19 +458,23 @@ function readNewEntries() {
 
     const text = partialLine + buf.toString('utf-8');
     const lines = text.split('\n');
-
-    // The last element may be a partial line if the file didn't end with '\n'
     partialLine = lines.pop() || '';
 
     for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const entry = JSON.parse(trimmed);
-        broadcast({ type: 'entry', entry });
-        touchActivity();
-      } catch (_) {
-        // Skip malformed lines
+      if (HAPPYTRAILS_SOURCE === 'transcript') {
+        const entry = parseTranscriptLine(line);
+        if (entry) {
+          broadcast({ type: 'entry', entry });
+          touchActivity();
+        }
+      } else {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const entry = JSON.parse(trimmed);
+          broadcast({ type: 'entry', entry });
+          touchActivity();
+        } catch (_) {}
       }
     }
   } catch (err) {
@@ -474,18 +485,20 @@ function readNewEntries() {
 }
 
 function startWatcher() {
-  const watchDir = path.dirname(LOG_FILE);
+  const watchFile = HAPPYTRAILS_SOURCE === 'transcript' ? TRANSCRIPT_PATH : LOG_FILE;
+  const watchDir = path.dirname(watchFile);
+  const watchBasename = path.basename(watchFile);
 
   try {
     fs.watch(watchDir, (eventType, filename) => {
-      if (filename && path.basename(LOG_FILE) !== filename) return;
+      if (filename && watchBasename !== filename) return;
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
         readNewEntries();
       }, 50);
     });
-    console.log(`[server] Watching directory: ${watchDir}`);
+    console.log(`[server] Watching directory: ${watchDir} (source: ${HAPPYTRAILS_SOURCE})`);
   } catch (err) {
     console.error(`[server] Failed to watch directory ${watchDir}: ${err.message}`);
   }
@@ -603,6 +616,21 @@ function startOwnerPidMonitor() {
 
 ensureSessionDir();
 
+// Validate transcript mode configuration
+if (HAPPYTRAILS_SOURCE === 'transcript') {
+  if (!TRANSCRIPT_PATH) {
+    console.error('[server] HAPPYTRAILS_SOURCE=transcript but HAPPYTRAILS_TRANSCRIPT_PATH is not set');
+    process.exit(1);
+  }
+  try {
+    fs.accessSync(TRANSCRIPT_PATH, fs.constants.R_OK);
+  } catch (err) {
+    console.error(`[server] Transcript file not readable: ${TRANSCRIPT_PATH} (${err.message})`);
+    process.exit(1);
+  }
+  console.log(`[server] Transcript mode: watching ${TRANSCRIPT_PATH}`);
+}
+
 // Initialize file offset from current log file size
 loadHistory(); // sets fileOffset to current end of file
 
@@ -625,6 +653,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[server] HappyTrails server listening on http://${URL_HOST}:${actualPort}/`);
   console.log(`[server] Session dir: ${SESSION_DIR}`);
   console.log(`[server] Log file: ${LOG_FILE}`);
+  console.log(`[server] Source: ${HAPPYTRAILS_SOURCE}${HAPPYTRAILS_SOURCE === 'transcript' ? ' (' + TRANSCRIPT_PATH + ')' : ''}`);
   writeServerInfo(actualPort);
   const url = `http://${URL_HOST}:${actualPort}/`;
   console.log(JSON.stringify({
