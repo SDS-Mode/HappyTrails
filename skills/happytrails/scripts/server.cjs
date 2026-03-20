@@ -78,6 +78,8 @@ const SESSION_DIR = process.env.HAPPYTRAILS_DIR || '/tmp/happytrails';
 const LOG_FILE = process.env.HAPPYTRAILS_LOG || path.join(SESSION_DIR, 'log.jsonl');
 const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTRAILS_OWNER_PID) : null;
 const LOCK_FILE = process.env.HAPPYTRAILS_LOCK_FILE || null;
+const HAPPYTRAILS_SOURCE = process.env.HAPPYTRAILS_SOURCE || 'hook';
+const TRANSCRIPT_PATH = process.env.HAPPYTRAILS_TRANSCRIPT_PATH || null;
 
 const DEFAULT_ICON = '🥾';
 const HAPPYTRAILS_ICON = (function () {
@@ -325,6 +327,72 @@ function handleUpgrade(req, socket, head) {
     console.error(`[server] WebSocket socket error: ${err.message}`);
     clients.delete(socket);
   });
+}
+
+// =============================================================================
+// Section 4b: Transcript Parsing (tool_use/tool_result pairing)
+// =============================================================================
+
+const pendingTools = new Map(); // tool_use_id → { name, input, timestamp, cwd, sessionId }
+
+function parseTranscriptLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  let entry;
+  try {
+    entry = JSON.parse(trimmed);
+  } catch (_) {
+    return null;
+  }
+
+  // Extract tool_use entries from assistant messages
+  if (entry.type === 'assistant' && entry.message && Array.isArray(entry.message.content)) {
+    for (const block of entry.message.content) {
+      if (block.type === 'tool_use' && block.id && block.name) {
+        pendingTools.set(block.id, {
+          name: block.name,
+          input: block.input || {},
+          timestamp: entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now(),
+          cwd: entry.cwd || null,
+          sessionId: entry.sessionId || null,
+        });
+      }
+    }
+    return null; // tool_use entries don't produce output yet
+  }
+
+  // Extract tool_result entries from user messages
+  if (entry.type === 'user' && entry.message && Array.isArray(entry.message.content)) {
+    for (const block of entry.message.content) {
+      if (block.type === 'tool_result' && block.tool_use_id) {
+        const pending = pendingTools.get(block.tool_use_id);
+        if (!pending) continue; // Orphaned result — skip
+        pendingTools.delete(block.tool_use_id);
+
+        // Build normalized output
+        let output;
+        if (entry.toolUseResult) {
+          output = entry.toolUseResult;
+        } else if (block.content !== undefined) {
+          output = { content: block.content };
+        } else {
+          output = {};
+        }
+
+        return {
+          timestamp: entry.timestamp ? new Date(entry.timestamp).getTime() : pending.timestamp,
+          session_id: pending.sessionId,
+          tool: pending.name,
+          input: pending.input,
+          output: output,
+          cwd: pending.cwd,
+        };
+      }
+    }
+  }
+
+  return null; // Non-tool entry — skip
 }
 
 // =============================================================================
