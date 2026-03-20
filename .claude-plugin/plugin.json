@@ -1,7 +1,7 @@
 {
   "name": "happytrails",
   "description": "Live browser-based viewer for all agent tool activity with three switchable view modes",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "author": {
     "name": "RCellar"
   },
