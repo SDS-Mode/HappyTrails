@@ -84,6 +84,7 @@ const LOG_FILE = process.env.HAPPYTRAILS_LOG || path.join(SESSION_DIR, 'log.json
 const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTRAILS_OWNER_PID) : null;
 const LOCK_FILE = process.env.HAPPYTRAILS_LOCK_FILE || null;
 const HAPPYTRAILS_SOURCE = process.env.HAPPYTRAILS_SOURCE || 'hook';
+const MAX_HISTORY_BYTES = 10_000_000; // 10MB cap for history load
 const TRANSCRIPT_PATH = process.env.HAPPYTRAILS_TRANSCRIPT_PATH || null;
 
 const DEFAULT_ICON = '🥾';
@@ -299,7 +300,7 @@ function handleUpgrade(req, socket, head) {
 
   // Send history to newly connected client
   const history = loadHistory();
-  sendToSocket(socket, { type: 'history', entries: history, icon: HAPPYTRAILS_ICON, tab_title: TAB_TITLE });
+  sendToSocket(socket, { type: 'history', entries: history.entries, truncated: history.truncated, total_size: history.totalSize, icon: HAPPYTRAILS_ICON, tab_title: TAB_TITLE });
 
   let buf = head && head.length > 0 ? Buffer.from(head) : Buffer.alloc(0);
 
@@ -435,16 +436,27 @@ function loadHistory() {
   const watchFile = HAPPYTRAILS_SOURCE === 'transcript' ? TRANSCRIPT_PATH : LOG_FILE;
   try {
     const stat = fs.statSync(watchFile);
-    const data = fs.readFileSync(watchFile, 'utf-8');
+    const seekPos = Math.max(0, stat.size - MAX_HISTORY_BYTES);
+    const readSize = stat.size - seekPos;
+    const fd = fs.openSync(watchFile, 'r');
+    const buf = Buffer.alloc(readSize);
+    fs.readSync(fd, buf, 0, readSize, seekPos);
+    fs.closeSync(fd);
     fileOffset = stat.size;
+
+    const text = buf.toString('utf-8');
+    let lines = text.split('\n');
+    // If we seeked past the start, first line is likely partial — discard it
+    if (seekPos > 0) lines.shift();
+
     const entries = [];
     if (HAPPYTRAILS_SOURCE === 'transcript') {
-      for (const line of data.split('\n')) {
+      for (const line of lines) {
         const entry = parseTranscriptLine(line);
         if (entry) entries.push(entry);
       }
     } else {
-      for (const line of data.split('\n')) {
+      for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
         try {
@@ -452,13 +464,13 @@ function loadHistory() {
         } catch (_) {}
       }
     }
-    return entries;
+    return { entries, truncated: seekPos > 0, totalSize: stat.size };
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.error(`[server] Error loading history: ${err.message}`);
     }
     fileOffset = 0;
-    return [];
+    return { entries: [], truncated: false, totalSize: 0 };
   }
 }
 
