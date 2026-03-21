@@ -899,6 +899,8 @@
       // ── Agent Grouping State ────────────────────────────────────────────
       const agentChildren = new Map();  // agentId → entry[]
       const agentIdToEntry = new Map(); // agentId → parent Agent entry
+      const pendingOrphans = new Map(); // parentId → entry[] (children arrived before parent)
+      const agentDomMap = new Map();    // agentId → DOM element (for targeted child updates)
 
       // ── DOM refs ───────────────────────────────────────────────────────────
       const container = document.getElementById('log-container');
@@ -1527,6 +1529,14 @@
           if (agentId) {
             if (!agentChildren.has(agentId)) agentChildren.set(agentId, []);
             agentIdToEntry.set(agentId, entry);
+            // Drain any orphaned children that arrived before this parent
+            const orphans = pendingOrphans.get(agentId);
+            if (orphans) {
+              const children = agentChildren.get(agentId);
+              orphans.forEach(function (o) { children.push(o); });
+              pendingOrphans.delete(agentId);
+              entry._hasOrphans = true; // Signal appendEntry to renderAll
+            }
           }
         }
       }
@@ -1535,7 +1545,12 @@
         const parentId = entry.parent_agent_id;
         if (!parentId) return false;
         // Only group under known top-level Agent entries (not nested agents)
-        if (!agentIdToEntry.has(parentId)) return false;
+        if (!agentIdToEntry.has(parentId)) {
+          // Parent not yet known — stash as orphan for later re-parenting
+          if (!pendingOrphans.has(parentId)) pendingOrphans.set(parentId, []);
+          pendingOrphans.get(parentId).push(entry);
+          return false;
+        }
         const children = agentChildren.get(parentId);
         if (children) {
           children.push(entry);
@@ -1792,6 +1807,7 @@
       // ── Render all ─────────────────────────────────────────────────────────
       function renderAll() {
         container.innerHTML = '';
+        agentDomMap.clear();
 
         if (currentMode === 'raw') {
           container.classList.add('raw-mode');
@@ -1822,7 +1838,12 @@
                        :                            renderVerbose;
 
         visible.forEach(function (entry) {
-          container.appendChild(renderer(entry));
+          var el = renderer(entry);
+          if (isAgentEntry(entry)) {
+            var agentId = (entry.output || {}).agentId;
+            if (agentId) agentDomMap.set(agentId, el);
+          }
+          container.appendChild(el);
         });
 
         scrollToBottom();
@@ -1839,9 +1860,31 @@
           updateToolTypeDropdown();
         }
 
-        // Child entries: re-render to update parent's children container
-        if (isChild) {
+        // Agent with orphans drained: full re-render to re-parent children
+        if (entry._hasOrphans) {
+          delete entry._hasOrphans;
           renderAll();
+          return;
+        }
+
+        // Child entries: targeted update of parent's children container
+        if (isChild) {
+          const parentId = entry.parent_agent_id;
+          const parentEl = agentDomMap.get(parentId);
+          if (parentEl) {
+            const parentEntry = agentIdToEntry.get(parentId);
+            const oldWrap = parentEl.querySelector('.agent-children-wrap');
+            const wasExpanded = oldWrap && oldWrap.classList.contains('expanded');
+            if (oldWrap) oldWrap.remove();
+            const newWrap = renderAgentChildren(parentEntry);
+            if (newWrap) {
+              if (wasExpanded) newWrap.classList.add('expanded');
+              parentEl.appendChild(newWrap);
+            }
+            scrollToBottom();
+          } else {
+            renderAll(); // Safety fallback
+          }
           return;
         }
 
@@ -1854,7 +1897,13 @@
                        : currentMode === 'raw'   ? renderRaw
                        :                            renderVerbose;
 
-        container.appendChild(renderer(entry));
+        const el = renderer(entry);
+        // Track agent DOM elements for targeted child updates
+        if (isAgentEntry(entry)) {
+          const agentId = (entry.output || {}).agentId;
+          if (agentId) agentDomMap.set(agentId, el);
+        }
+        container.appendChild(el);
         scrollToBottom();
       }
 
