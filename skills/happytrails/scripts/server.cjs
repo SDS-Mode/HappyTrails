@@ -127,8 +127,8 @@ function getProcessStartTime(pid) {
   } catch (_) {}
   try {
     // macOS/Linux fallback: ps
-    const { execSync } = require('child_process');
-    return execSync(`ps -o lstart= -p ${pid}`, { encoding: 'utf-8', timeout: 2000 }).trim();
+    const { execFileSync } = require('child_process');
+    return execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8', timeout: 2000 }).trim();
   } catch (_) {}
   return null;
 }
@@ -201,6 +201,8 @@ clientHtml = clientHtml
   .replace('<title>HappyTrails</title>', '<title>' + TAB_TITLE.replace(/</g, '&lt;') + '</title>')
   .replace('<!--HAPPYTRAILS_ICON-->', '<script>window.__HT_ICON=' + safeJsonEmbed(HAPPYTRAILS_ICON) + ';window.__HT_TAB_TITLE=' + safeJsonEmbed(TAB_TITLE) + ';</script>');
 
+const CSP_HEADER = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src ws://" + URL_HOST + ":* ws://localhost:* ws://127.0.0.1:*; img-src data:; frame-ancestors 'none'";
+
 let lastActivityTime = Date.now();
 
 function touchActivity() {
@@ -213,6 +215,8 @@ function handleHttp(req, res) {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': Buffer.byteLength(clientHtml),
+      'Content-Security-Policy': CSP_HEADER,
+      'X-Content-Type-Options': 'nosniff',
     });
     res.end(clientHtml);
   } else {
