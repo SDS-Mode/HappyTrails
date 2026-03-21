@@ -204,6 +204,7 @@ clientHtml = clientHtml
 const CSP_HEADER = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src ws://" + URL_HOST + ":* ws://localhost:* ws://127.0.0.1:*; img-src data:; frame-ancestors 'none'";
 
 let lastActivityTime = Date.now();
+let retryCount = 0;
 
 function touchActivity() {
   lastActivityTime = Date.now();
@@ -698,8 +699,15 @@ server.listen(PORT, HOST, () => {
 });
 
 server.on('error', (err) => {
-  console.error(`[server] HTTP server error: ${err.message}`);
-  shutdown(`server error: ${err.message}`);
+  if (err.code === 'EADDRINUSE' && retryCount < 3) {
+    retryCount++;
+    const newPort = 49152 + Math.floor(Math.random() * 16383);
+    console.error(`[server] Port ${err.port || PORT} in use, retrying on ${newPort}... (attempt ${retryCount}/3)`);
+    server.listen(newPort, HOST);
+  } else {
+    console.error(`[server] HTTP server error: ${err.message}`);
+    shutdown(`server error: ${err.message}`);
+  }
 });
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
