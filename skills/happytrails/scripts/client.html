@@ -894,6 +894,7 @@
       let activeToolTypes = new Set(); // Tool types currently checked (all by default)
       let knownToolTypes = new Set();  // All tool types seen so far
       let statusFilter = 'all';       // 'all' | 'success' | 'failure'
+      const SEARCH_CAP = 5000; // Max chars for regex search/highlight (prevents catastrophic backtracking)
 
       // ── Agent Grouping State ────────────────────────────────────────────
       const agentChildren = new Map();  // agentId → entry[]
@@ -1032,7 +1033,7 @@
             const toolName = entry.tool || '';
             const summary = getToolSummary(entry);
             const output = getOutputText(entry);
-            if (!searchRegex.test(toolName) && !searchRegex.test(summary) && !searchRegex.test(output)) {
+            if (!searchRegex.test(toolName.slice(0, SEARCH_CAP)) && !searchRegex.test(summary.slice(0, SEARCH_CAP)) && !searchRegex.test(output.slice(0, SEARCH_CAP))) {
               return false;
             }
           }
@@ -1439,7 +1440,7 @@
             const toolName = entry.tool || '';
             const summary = getToolSummary(entry);
             const output = getOutputText(entry);
-            const agentMatches = searchRegex.test(toolName) || searchRegex.test(summary) || searchRegex.test(output);
+            const agentMatches = searchRegex.test(toolName.slice(0, SEARCH_CAP)) || searchRegex.test(summary.slice(0, SEARCH_CAP)) || searchRegex.test(output.slice(0, SEARCH_CAP));
             if (!agentMatches && !childMatch) return false;
           }
 
@@ -1455,7 +1456,7 @@
           const toolName = entry.tool || '';
           const summary = getToolSummary(entry);
           const output = getOutputText(entry);
-          if (!searchRegex.test(toolName) && !searchRegex.test(summary) && !searchRegex.test(output)) {
+          if (!searchRegex.test(toolName.slice(0, SEARCH_CAP)) && !searchRegex.test(summary.slice(0, SEARCH_CAP)) && !searchRegex.test(output.slice(0, SEARCH_CAP))) {
             return false;
           }
         }
@@ -1571,7 +1572,7 @@
           const toolName = entry.tool || '';
           const summary = getToolSummary(entry);
           const output = getOutputText(entry);
-          if (!searchRegex.test(toolName) && !searchRegex.test(summary) && !searchRegex.test(output)) {
+          if (!searchRegex.test(toolName.slice(0, SEARCH_CAP)) && !searchRegex.test(summary.slice(0, SEARCH_CAP)) && !searchRegex.test(output.slice(0, SEARCH_CAP))) {
             return false;
           }
         }
@@ -1618,7 +1619,7 @@
         if (outputText) {
           const out = document.createElement('pre');
           out.className = 'verbose-output';
-          out.appendChild(highlightText(outputText, searchRegex));
+          out.appendChild(highlightText(outputText.slice(0, SEARCH_CAP), searchRegex));
           el.appendChild(out);
         }
 
@@ -1711,7 +1712,7 @@
         const body = document.createElement('div');
         body.className = 'card-body';
         if (outputText) {
-          body.appendChild(highlightText(outputText, searchRegex));
+          body.appendChild(highlightText(outputText.slice(0, SEARCH_CAP), searchRegex));
         } else {
           body.textContent = '(no output)';
         }
@@ -1762,7 +1763,7 @@
         line.appendChild(promptSpan);
         line.appendChild(highlightText(summary, searchRegex));
         line.appendChild(document.createTextNode('\n'));
-        line.appendChild(highlightText(outputText, searchRegex));
+        line.appendChild(highlightText(outputText.slice(0, SEARCH_CAP), searchRegex));
         el.appendChild(line);
 
         if (isAgentEntry(entry)) {
