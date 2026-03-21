@@ -884,7 +884,7 @@
 
       // ── State ──────────────────────────────────────────────────────────────
       const entries = [];
-      let currentMode = localStorage.getItem('ht-mode') || 'verbose';
+      let currentMode = (function () { try { return localStorage.getItem('ht-mode'); } catch (_) { return null; } })() || 'verbose';
       let autoScroll = true;
       let ws = null;
 
@@ -1169,7 +1169,7 @@
 
         btn.addEventListener('click', function () {
           currentMode = btn.dataset.mode;
-          localStorage.setItem('ht-mode', currentMode);
+          try { localStorage.setItem('ht-mode', currentMode); } catch (_) {}
           modeButtons.forEach(function (b) { b.classList.remove('active'); });
           btn.classList.add('active');
           renderAll();
@@ -1756,7 +1756,13 @@
         const outputText = getOutputText(entry);
 
         const line = document.createElement('span');
-        line.innerHTML = '<span class="raw-prompt">$ </span>' + escapeHtml(summary) + '\n' + escapeHtml(outputText);
+        const promptSpan = document.createElement('span');
+        promptSpan.className = 'raw-prompt';
+        promptSpan.textContent = '$ ';
+        line.appendChild(promptSpan);
+        line.appendChild(highlightText(summary, searchRegex));
+        line.appendChild(document.createTextNode('\n'));
+        line.appendChild(highlightText(outputText, searchRegex));
         el.appendChild(line);
 
         if (isAgentEntry(entry)) {
