@@ -810,6 +810,8 @@
       <button class="status-btn" data-status="failure">✗</button>
     </div>
 
+    <span id="entry-count" style="font-size:11px;color:var(--text-secondary);white-space:nowrap;"></span>
+
     <!-- Right group: icon, status, menu -->
     <div id="header-right">
       <span id="header-icon" style="font-size:20px;line-height:1;flex-shrink:0;">🥾</span>
@@ -895,6 +897,8 @@
       let knownToolTypes = new Set();  // All tool types seen so far
       let statusFilter = 'all';       // 'all' | 'success' | 'failure'
       const SEARCH_CAP = 5000; // Max chars for regex search/highlight (prevents catastrophic backtracking)
+      let historyTruncated = false;
+      let historyTotalSize = 0;
 
       // ── Agent Grouping State ────────────────────────────────────────────
       const agentChildren = new Map();  // agentId → entry[]
@@ -1819,6 +1823,20 @@
         return el;
       }
 
+      function updateEntryCount(visibleCount) {
+        var el = document.getElementById('entry-count');
+        if (!el) return;
+        if (entries.length === 0) { el.textContent = ''; return; }
+        var text;
+        if (isAnyFilterActive()) {
+          text = visibleCount + ' of ' + entries.length + ' entries';
+        } else {
+          text = entries.length + ' entries';
+        }
+        if (historyTruncated) text += ' (log truncated)';
+        el.textContent = text;
+      }
+
       // ── Render all ─────────────────────────────────────────────────────────
       function renderAll() {
         container.innerHTML = '';
@@ -1835,6 +1853,7 @@
           empty.id = 'empty-state';
           empty.textContent = 'Waiting for tool activity...';
           container.appendChild(empty);
+          updateEntryCount(0);
           return;
         }
 
@@ -1845,6 +1864,7 @@
           noMatch.id = 'empty-state';
           noMatch.textContent = 'No entries match current filters';
           container.appendChild(noMatch);
+          updateEntryCount(0);
           return;
         }
 
@@ -1874,6 +1894,7 @@
         });
 
         scrollToBottom();
+        updateEntryCount(visible.length);
       }
 
       // ── Append single entry ────────────────────────────────────────────────
@@ -1971,6 +1992,9 @@
             });
             updateToolTypeDropdown();
             renderAll();
+            historyTruncated = !!msg.truncated;
+            historyTotalSize = msg.total_size || 0;
+            updateEntryCount(getVisibleEntries().length);
             // Apply icon and title from server (takes precedence over injected values)
             if (msg.icon) applyIcon(msg.icon);
             if (msg.tab_title) applyTitle(msg.tab_title);
