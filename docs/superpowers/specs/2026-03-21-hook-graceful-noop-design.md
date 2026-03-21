@@ -22,22 +22,32 @@ A new file `skills/happytrails/scripts/hook-guard.sh` acts as the hook entry poi
 
 ```bash
 #!/usr/bin/env bash
+set -euo pipefail
+
 # Fast-path no-op: exit before spawning Node if no active session.
-# Checks two signals:
-#   1. HAPPYTRAILS_LOG env var (set when session is running via env)
-#   2. .happytrails/.active file in the project directory
+# Primary check: .happytrails/.active file in the project directory.
+# Fallback: HAPPYTRAILS_LOG env var (manual/advanced usage only —
+# not set during normal hook invocations since Claude Code spawns
+# a fresh process for each hook call).
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Fast checks — no Node, no stdin read
+# Env var fallback — only effective when explicitly exported by the
+# caller (e.g., manual testing, custom wrapper scripts).
 [[ -n "${HAPPYTRAILS_LOG:-}" ]] && exec node "${SCRIPT_DIR}/hook.js"
 
-# Derive project dir: Claude Code sets PWD to the project root when
-# invoking hooks. Check for .active without reading stdin.
+# Primary check: .active file in project root.
+# Assumption: Claude Code sets PWD to the project root when invoking
+# plugin hooks. If this assumption breaks, the guard false-negatives
+# (no-ops when a session is active). hook.js has a secondary .active
+# lookup via stdin's cwd field, so the worst case is a missed log
+# entry — not an error. See "PWD assumption" in Assumptions section.
 [[ -f "${PWD}/.happytrails/.active" ]] && exec node "${SCRIPT_DIR}/hook.js"
 
 exit 0
 ```
+
+Note: `exec node` replaces the bash process with Node, so stdin is inherited automatically — no explicit forwarding needed.
 
 ### hooks.json change
 
@@ -65,7 +75,9 @@ hook.js stays as-is. When the guard forwards to it via `exec node`, it receives 
 
 **Guard hangs**: Not possible — two `test` calls and an `exit`. No stdin reads, no network, no subprocesses (unless forwarding to Node).
 
-**`PWD` doesn't point to project root**: Guard doesn't find `.active`, exits 0. If `HAPPYTRAILS_LOG` is also unset, the hook no-ops correctly — if we can't find an active session, there's nothing to do.
+**`PWD` doesn't point to project root**: Guard doesn't find `.active`, exits 0. This is a false-negative — a session may be active but the guard can't see it. This is acceptable: the tool call is silently dropped (one missed log entry), not an error. See Assumptions section.
+
+**Race condition during session startup**: If `start-server.sh` is running but hasn't yet written `.active`, a simultaneous tool call will no-op. This is an existing race in hook.js (which checks the same `.active` file) — not a regression. The window is narrow (~100ms during server startup).
 
 **Timeout budget**: The 5s timeout in hooks.json only matters when Node is spawned. The guard's bash-only path completes in under 5ms.
 
@@ -94,12 +106,21 @@ echo '{"tool_name":"Bash","tool_input":{"command":"echo hi"}}' | bash scripts/ho
 
 ```bash
 rm -f .happytrails/.active
-HAPPYTRAILS_LOG=/tmp/test.jsonl echo '{"tool_name":"Bash"}' | bash scripts/hook-guard.sh
+echo '{"tool_name":"Bash","tool_input":{"command":"echo hi"}}' | HAPPYTRAILS_LOG=/tmp/test.jsonl bash scripts/hook-guard.sh
 # Verify entry appended to /tmp/test.jsonl
 ```
+
+## Assumptions
+
+**`.active` file format**: The `.active` file contains the absolute path to the session's `log.jsonl`. It is created by `start-server.sh` and removed by `stop-server.sh` or server shutdown. The guard only checks for the file's existence (`-f`); `hook.js` reads its content to discover the log path.
+
+**PWD assumption**: The guard relies on Claude Code setting `PWD` to the project root when invoking plugin hooks. This must be verified empirically during implementation. If the assumption is wrong, the `.active` check will never match and the guard will always no-op — effectively disabling hook logging. In that case, the implementation must find an alternative way to discover the project directory without reading stdin (e.g., a stable env var set during session start, or a well-known path).
+
+**HAPPYTRAILS_LOG is rarely set**: This env var is only set in the server process environment by `start-server.sh`. Claude Code spawns a fresh process for each hook invocation, so `HAPPYTRAILS_LOG` is not normally available. The guard's env var check exists as a belt-and-suspenders path for manual testing and custom wrapper scripts, not as a primary discovery mechanism.
 
 ## Scope
 
 - One new file: `scripts/hook-guard.sh`
 - One edit: `hooks/hooks.json` command field
+- Update: `CLAUDE.md` architecture diagram and key files to reflect `hook-guard.sh` as the hook entry point
 - No changes to hook.js, server.cjs, client.html, or SKILL.md
