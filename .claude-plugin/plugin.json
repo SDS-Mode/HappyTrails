@@ -1,11 +1,17 @@
 {
   "name": "happytrails",
   "description": "Live browser-based viewer for all agent tool activity with three switchable view modes",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "author": {
     "name": "RCellar"
   },
   "repository": "https://github.com/RCellar/HappyTrails",
   "license": "UNLICENSED",
-  "keywords": ["skills", "logging", "monitoring", "browser", "hooks"]
+  "keywords": [
+    "skills",
+    "logging",
+    "monitoring",
+    "browser",
+    "hooks"
+  ]
 }
