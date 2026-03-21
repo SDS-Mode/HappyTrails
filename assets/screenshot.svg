@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 680" font-family="'Cascadia Code','Fira Code','SF Mono',Consolas,monospace">
+  <defs>
+    <clipPath id="viewport">
+      <rect x="0" y="0" width="860" height="680" rx="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- Window frame -->
+  <rect width="860" height="680" rx="10" fill="#1d1d1f"/>
+
+  <!-- Browser chrome -->
+  <rect width="860" height="36" rx="10" fill="#2d2d2f"/>
+  <rect y="26" width="860" height="10" fill="#2d2d2f"/>
+  <circle cx="18" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="36" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="54" cy="18" r="6" fill="#28c840"/>
+  <rect x="200" y="8" width="460" height="20" rx="6" fill="#1d1d1f"/>
+  <text x="430" y="22" text-anchor="middle" fill="#86868b" font-size="10">localhost:54916</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- HappyTrails Header Bar                              -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect y="36" width="860" height="42" fill="#2d2d2f"/>
+  <line x1="0" y1="78" x2="860" y2="78" stroke="#424245" stroke-width="1"/>
+
+  <!-- Mode buttons -->
+  <rect x="12" y="45" width="42" height="24" rx="6" fill="#0a84ff"/>
+  <text x="33" y="61" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="600">Full</text>
+
+  <rect x="58" y="45" width="48" height="24" rx="6" fill="none" stroke="#424245" stroke-width="1"/>
+  <text x="82" y="61" text-anchor="middle" fill="#86868b" font-size="10">Cards</text>
+
+  <rect x="110" y="45" width="38" height="24" rx="6" fill="none" stroke="#424245" stroke-width="1"/>
+  <text x="129" y="61" text-anchor="middle" fill="#86868b" font-size="10">Raw</text>
+
+  <!-- Divider -->
+  <line x1="158" y1="48" x2="158" y2="66" stroke="#424245" stroke-width="1"/>
+
+  <!-- Search button -->
+  <rect x="168" y="45" width="28" height="24" rx="6" fill="none" stroke="#424245" stroke-width="1"/>
+  <text x="182" y="61" text-anchor="middle" font-size="11">&#x1F50D;</text>
+
+  <!-- Tool filter -->
+  <rect x="202" y="45" width="64" height="24" rx="6" fill="none" stroke="#424245" stroke-width="1"/>
+  <text x="234" y="61" text-anchor="middle" fill="#86868b" font-size="10">Tools &#x25BE;</text>
+
+  <!-- Status filter toggle -->
+  <rect x="272" y="45" width="80" height="24" rx="6" fill="none" stroke="#424245" stroke-width="1"/>
+  <rect x="272" y="45" width="30" height="24" rx="6" fill="#0a84ff"/>
+  <rect x="278" y="45" width="24" height="24" fill="#0a84ff"/>
+  <text x="287" y="61" text-anchor="middle" fill="#ffffff" font-size="10">All</text>
+  <line x1="302" y1="48" x2="302" y2="66" stroke="#424245" stroke-width="1"/>
+  <text x="322" y="61" text-anchor="middle" fill="#86868b" font-size="10">&#x2713;</text>
+  <line x1="338" y1="48" x2="338" y2="66" stroke="#424245" stroke-width="1"/>
+  <text x="345" y="61" text-anchor="middle" fill="#86868b" font-size="10">&#x2717;</text>
+
+  <!-- Entry count -->
+  <text x="640" y="61" text-anchor="end" fill="#86868b" font-size="10">12 entries</text>
+
+  <!-- Right group -->
+  <text x="790" y="62" text-anchor="middle" font-size="16" line-height="1">&#x1F97E;</text>
+
+  <!-- Status dot (connected) -->
+  <circle cx="816" cy="57" r="5" fill="#34c759"/>
+  <text x="816" y="60" text-anchor="middle" fill="#1d1d1f" font-size="5" font-weight="700">&#x2713;</text>
+
+  <!-- Menu button -->
+  <rect x="830" y="45" width="24" height="24" rx="6" fill="none" stroke="#424245" stroke-width="1"/>
+  <text x="842" y="62" text-anchor="middle" fill="#86868b" font-size="12">&#x22EF;</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- Log Container — Verbose Mode                        -->
+  <!-- ═══════════════════════════════════════════════════ -->
+
+  <!-- Entry 1: Bash (success) -->
+  <!-- Divider line with timestamp -->
+  <line x1="16" y1="100" x2="350" y2="100" stroke="#424245" stroke-width="0.5"/>
+  <text x="380" y="104" text-anchor="middle" fill="#86868b" font-size="9">09:41:23</text>
+  <line x1="410" y1="100" x2="844" y2="100" stroke="#424245" stroke-width="0.5"/>
+
+  <!-- Tool label -->
+  <rect x="16" y="112" width="42" height="18" rx="4" fill="#3d3d3f" stroke="#424245" stroke-width="0.5"/>
+  <text x="37" y="124" text-anchor="middle" fill="#0a84ff" font-size="9" font-weight="700" letter-spacing="0.5">BASH</text>
+
+  <!-- Command -->
+  <text x="16" y="146" fill="#34c759" font-size="11" font-weight="600">$ </text>
+  <text x="30" y="146" fill="#f5f5f7" font-size="11">git log --oneline -5</text>
+
+  <!-- Output box -->
+  <rect x="16" y="154" width="828" height="76" rx="6" fill="#2d2d2f" stroke="#424245" stroke-width="0.5"/>
+  <text x="26" y="171" fill="#86868b" font-size="10">de80a50 chore: bump to 1.7.0</text>
+  <text x="26" y="185" fill="#86868b" font-size="10">3f63459 chore: add bump-version and release scripts</text>
+  <text x="26" y="199" fill="#86868b" font-size="10">64bf12f chore: remove docs/ from git tracking</text>
+  <text x="26" y="213" fill="#86868b" font-size="10">1e2487f fix: clear pendingOrphans on WebSocket reconnect</text>
+  <text x="26" y="227" fill="#86868b" font-size="10">c10dcea a11y: add ARIA landmarks, keyboard navigation</text>
+
+  <!-- Exit badge -->
+  <rect x="16" y="238" width="56" height="18" rx="4" fill="rgba(52,199,89,0.15)" stroke="rgba(52,199,89,0.3)" stroke-width="0.5"/>
+  <text x="44" y="250" text-anchor="middle" fill="#34c759" font-size="9" font-weight="600">&#x2713; exit 0</text>
+
+  <!-- Entry 2: Read (success) -->
+  <line x1="16" y1="274" x2="350" y2="274" stroke="#424245" stroke-width="0.5"/>
+  <text x="380" y="278" text-anchor="middle" fill="#86868b" font-size="9">09:41:24</text>
+  <line x1="410" y1="274" x2="844" y2="274" stroke="#424245" stroke-width="0.5"/>
+
+  <rect x="16" y="286" width="42" height="18" rx="4" fill="#3d3d3f" stroke="#424245" stroke-width="0.5"/>
+  <text x="37" y="298" text-anchor="middle" fill="#0a84ff" font-size="9" font-weight="700" letter-spacing="0.5">READ</text>
+
+  <text x="16" y="320" fill="#34c759" font-size="11" font-weight="600">$ </text>
+  <text x="30" y="320" fill="#f5f5f7" font-size="11">skills/happytrails/scripts/server.cjs</text>
+
+  <rect x="16" y="328" width="828" height="46" rx="6" fill="#2d2d2f" stroke="#424245" stroke-width="0.5"/>
+  <text x="26" y="345" fill="#86868b" font-size="10">'use strict';</text>
+  <text x="26" y="359" fill="#86868b" font-size="10">// Section 1: WebSocket Protocol (RFC 6455)</text>
+  <text x="26" y="370" fill="#555" font-size="9">... 688 lines</text>
+
+  <!-- Entry 3: Agent (with children + stats) -->
+  <line x1="16" y1="396" x2="350" y2="396" stroke="#424245" stroke-width="0.5"/>
+  <text x="380" y="400" text-anchor="middle" fill="#86868b" font-size="9">09:41:25</text>
+  <line x1="410" y1="396" x2="844" y2="396" stroke="#424245" stroke-width="0.5"/>
+
+  <rect x="16" y="408" width="50" height="18" rx="4" fill="#3d3d3f" stroke="#424245" stroke-width="0.5"/>
+  <text x="41" y="420" text-anchor="middle" fill="#0a84ff" font-size="9" font-weight="700" letter-spacing="0.5">AGENT</text>
+
+  <text x="16" y="442" fill="#34c759" font-size="11" font-weight="600">$ </text>
+  <text x="30" y="442" fill="#f5f5f7" font-size="11">Review spec document</text>
+
+  <!-- Agent stats bar -->
+  <rect x="16" y="452" width="828" height="28" rx="4" fill="#2d2d2f" stroke="none"/>
+  <rect x="16" y="452" width="3" height="28" rx="1" fill="#d2a8ff"/>
+
+  <rect x="28" y="457" width="76" height="16" rx="4" fill="rgba(52,199,89,0.15)" stroke="rgba(52,199,89,0.3)" stroke-width="0.5"/>
+  <text x="66" y="469" text-anchor="middle" fill="#34c759" font-size="8" font-weight="600">&#x2713; completed</text>
+
+  <text x="120" y="469" fill="#86868b" font-size="9">&#x23F1; </text>
+  <text x="133" y="469" fill="#f5f5f7" font-size="9">42.3s</text>
+
+  <text x="180" y="469" fill="#86868b" font-size="9">&#x1F527; </text>
+  <text x="195" y="469" fill="#f5f5f7" font-size="9">18 tools</text>
+
+  <text x="255" y="469" fill="#86868b" font-size="9">&#x1F4CA; </text>
+  <text x="270" y="469" fill="#f5f5f7" font-size="9">45,912 tokens</text>
+
+  <!-- Agent children (collapsed) -->
+  <rect x="28" y="486" width="816" height="22" rx="0" fill="none"/>
+  <line x1="28" y1="486" x2="28" y2="508" stroke="rgba(210,168,255,0.3)" stroke-width="2"/>
+  <text x="40" y="501" fill="#d2a8ff" font-size="9" opacity="0.8">&#x25B8; 18 tool calls</text>
+
+  <!-- Entry 4: Bash (failure) -->
+  <line x1="16" y1="524" x2="350" y2="524" stroke="#424245" stroke-width="0.5"/>
+  <text x="380" y="528" text-anchor="middle" fill="#86868b" font-size="9">09:42:08</text>
+  <line x1="410" y1="524" x2="844" y2="524" stroke="#424245" stroke-width="0.5"/>
+
+  <rect x="16" y="536" width="42" height="18" rx="4" fill="#3d3d3f" stroke="#424245" stroke-width="0.5"/>
+  <text x="37" y="548" text-anchor="middle" fill="#0a84ff" font-size="9" font-weight="700" letter-spacing="0.5">BASH</text>
+
+  <text x="16" y="570" fill="#34c759" font-size="11" font-weight="600">$ </text>
+  <text x="30" y="570" fill="#f5f5f7" font-size="11">npm test</text>
+
+  <rect x="16" y="578" width="828" height="46" rx="6" fill="#2d2d2f" stroke="#424245" stroke-width="0.5"/>
+  <text x="26" y="595" fill="#86868b" font-size="10">npm ERR! Missing script: "test"</text>
+  <text x="26" y="609" fill="#86868b" font-size="10">npm ERR! To see a list of scripts, run: npm run</text>
+
+  <!-- Failure exit badge -->
+  <rect x="16" y="632" width="56" height="18" rx="4" fill="rgba(255,59,48,0.15)" stroke="rgba(255,59,48,0.3)" stroke-width="0.5"/>
+  <text x="44" y="644" text-anchor="middle" fill="#ff3b30" font-size="9" font-weight="600">&#x2717; exit 1</text>
+
+  <!-- Subtle scroll indicator -->
+  <rect x="848" y="90" width="4" height="560" rx="2" fill="#3d3d3f" opacity="0.3"/>
+  <rect x="848" y="90" width="4" height="200" rx="2" fill="#86868b" opacity="0.4"/>
+</svg>

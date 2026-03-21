@@ -4,6 +4,10 @@
 
 Live browser-based viewer for all Claude Code agent tool activity. Streams every tool call to an infinite-scroll HTML pane with three switchable view modes.
 
+![HappyTrails Session](assets/screenshot.svg)
+
+## Architecture
+
 ![Architecture](assets/architecture.svg)
 
 ## Installation
