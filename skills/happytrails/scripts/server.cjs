@@ -74,6 +74,11 @@ function decodeFrame(buffer) {
 const PORT = process.env.HAPPYTRAILS_PORT || (49152 + Math.floor(Math.random() * 16383));
 const HOST = process.env.HAPPYTRAILS_HOST || '127.0.0.1';
 const URL_HOST = process.env.HAPPYTRAILS_URL_HOST || (HOST === '127.0.0.1' ? 'localhost' : HOST);
+const ALLOWED_WS_ORIGINS = new Set([
+  'localhost',
+  '127.0.0.1',
+  URL_HOST.toLowerCase(),
+]);
 const SESSION_DIR = process.env.HAPPYTRAILS_DIR || '/tmp/happytrails';
 const LOG_FILE = process.env.HAPPYTRAILS_LOG || path.join(SESSION_DIR, 'log.jsonl');
 const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTRAILS_OWNER_PID) : null;
@@ -246,12 +251,30 @@ function sendToSocket(socket, msg) {
   }
 }
 
+function isOriginAllowed(req) {
+  const origin = req.headers['origin'];
+  if (!origin) return true; // Non-browser clients don't send Origin
+  if (origin === 'null') return false; // Sandboxed iframe bypass
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return ALLOWED_WS_ORIGINS.has(hostname);
+  } catch (_) {
+    return false; // Malformed origin
+  }
+}
+
 function handleUpgrade(req, socket, head) {
   touchActivity();
 
   const clientKey = req.headers['sec-websocket-key'];
   if (!clientKey) {
     socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  if (!isOriginAllowed(req)) {
+    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
     socket.destroy();
     return;
   }
