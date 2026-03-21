@@ -65,15 +65,22 @@ if [[ -n "$ACTIVE_FILE" && -f "$ACTIVE_FILE" ]]; then
     if [[ -f "$OLD_PID_FILE" ]]; then
       old_pid=$(cat "$OLD_PID_FILE")
       if kill -0 "$old_pid" 2>/dev/null; then
-        # Server is running — stop it
-        kill "$old_pid" 2>/dev/null
-        for i in {1..20}; do
-          if ! kill -0 "$old_pid" 2>/dev/null; then break; fi
-          sleep 0.1
-        done
-        if kill -0 "$old_pid" 2>/dev/null; then
-          kill -9 "$old_pid" 2>/dev/null || true
-          sleep 0.1
+        # Verify it's actually a node process (PID may have been recycled)
+        old_comm=$(ps -o comm= -p "$old_pid" 2>/dev/null | tr -d ' ')
+        if [[ -n "$old_comm" && "$old_comm" != node* ]]; then
+          # PID recycled to non-node process — skip kill, clean up stale files
+          :
+        else
+          # Either it's node (correct) or ps failed (can't tell — proceed with kill)
+          kill "$old_pid" 2>/dev/null
+          for i in {1..20}; do
+            if ! kill -0 "$old_pid" 2>/dev/null; then break; fi
+            sleep 0.1
+          done
+          if kill -0 "$old_pid" 2>/dev/null; then
+            kill -9 "$old_pid" 2>/dev/null || true
+            sleep 0.1
+          fi
         fi
       fi
       rm -f "$OLD_PID_FILE"
