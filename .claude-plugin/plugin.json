@@ -6,7 +6,7 @@
     "name": "RCellar"
   },
   "repository": "https://github.com/RCellar/HappyTrails",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "keywords": [
     "skills",
     "logging",

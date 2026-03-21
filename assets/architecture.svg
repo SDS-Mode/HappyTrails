@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="'Cascadia Code','Fira Code','SF Mono',Consolas,monospace">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#86868b"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a84ff"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1d1d1f"/>
+      <stop offset="100%" stop-color="#161618"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" rx="12" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="450" y="38" text-anchor="middle" fill="#f5f5f7" font-size="16" font-weight="700" letter-spacing="0.5">HappyTrails Architecture</text>
+  <text x="450" y="56" text-anchor="middle" fill="#86868b" font-size="11">PostToolUse hook → JSONL log → WebSocket server → Browser</text>
+
+  <!-- ─── Row 1: Claude Code Agent ─── -->
+  <rect x="40" y="85" width="180" height="72" rx="10" fill="#2d2d2f" stroke="#424245" stroke-width="1"/>
+  <text x="130" y="114" text-anchor="middle" fill="#f5f5f7" font-size="13" font-weight="600">Claude Code</text>
+  <text x="130" y="134" text-anchor="middle" fill="#86868b" font-size="11">Agent Session</text>
+  <text x="130" y="148" text-anchor="middle" fill="#555" font-size="9">Bash, Read, Write, Edit...</text>
+
+  <!-- Arrow: Agent → Hook -->
+  <line x1="220" y1="121" x2="308" y2="121" stroke="#86868b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="264" y="112" text-anchor="middle" fill="#86868b" font-size="9">tool call</text>
+
+  <!-- ─── Row 1: Hook ─── -->
+  <rect x="310" y="85" width="150" height="72" rx="10" fill="#2d2d2f" stroke="#424245" stroke-width="1"/>
+  <text x="385" y="114" text-anchor="middle" fill="#f5f5f7" font-size="13" font-weight="600">hook.js</text>
+  <text x="385" y="134" text-anchor="middle" fill="#86868b" font-size="11">PostToolUse</text>
+  <text x="385" y="148" text-anchor="middle" fill="#555" font-size="9">stdin JSON → append</text>
+
+  <!-- Arrow: Hook → Log File -->
+  <line x1="460" y1="121" x2="548" y2="121" stroke="#86868b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="504" y="112" text-anchor="middle" fill="#86868b" font-size="9">append</text>
+
+  <!-- ─── Row 1: Log File ─── -->
+  <rect x="550" y="85" width="150" height="72" rx="10" fill="#1a2a1a" stroke="#34c759" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="625" y="114" text-anchor="middle" fill="#34c759" font-size="13" font-weight="600">log.jsonl</text>
+  <text x="625" y="134" text-anchor="middle" fill="#86868b" font-size="11">Append-only</text>
+  <text x="625" y="148" text-anchor="middle" fill="#555" font-size="9">.happytrails/&lt;session&gt;/</text>
+
+  <!-- Arrow: Log → Server (down) -->
+  <line x1="625" y1="157" x2="625" y2="218" stroke="#86868b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="640" y="192" fill="#86868b" font-size="9">fs.watch</text>
+
+  <!-- ─── Row 2: Server ─── -->
+  <rect x="490" y="220" width="270" height="90" rx="10" fill="#2d2d2f" stroke="#0a84ff" stroke-width="1" stroke-opacity="0.5"/>
+  <text x="625" y="248" text-anchor="middle" fill="#0a84ff" font-size="13" font-weight="600">server.cjs</text>
+  <text x="625" y="268" text-anchor="middle" fill="#f5f5f7" font-size="11">HTTP + WebSocket</text>
+  <text x="625" y="286" text-anchor="middle" fill="#86868b" font-size="10">Origin validation  |  CSP headers</text>
+  <text x="625" y="300" text-anchor="middle" fill="#86868b" font-size="10">10MB history cap  |  Port retry</text>
+
+  <!-- Arrow: Server → Browser (down) -->
+  <line x1="625" y1="310" x2="625" y2="378" stroke="#0a84ff" stroke-width="1.5" marker-end="url(#arrow-accent)"/>
+  <text x="640" y="348" fill="#0a84ff" font-size="9">WebSocket</text>
+  <text x="640" y="360" fill="#555" font-size="8">ws://localhost</text>
+
+  <!-- ─── Row 3: Browser ─── -->
+  <rect x="370" y="380" width="510" height="120" rx="10" fill="#2d2d2f" stroke="#424245" stroke-width="1"/>
+
+  <!-- Browser chrome -->
+  <rect x="370" y="380" width="510" height="28" rx="10" fill="#3d3d3f"/>
+  <rect x="370" y="398" width="510" height="10" fill="#3d3d3f"/>
+  <circle cx="388" cy="394" r="5" fill="#ff5f57"/>
+  <circle cx="404" cy="394" r="5" fill="#febc2e"/>
+  <circle cx="420" cy="394" r="5" fill="#28c840"/>
+  <rect x="440" y="388" width="200" height="14" rx="4" fill="#2d2d2f"/>
+  <text x="540" y="399" text-anchor="middle" fill="#86868b" font-size="8">localhost:PORT</text>
+
+  <!-- View mode tabs -->
+  <rect x="385" y="415" width="50" height="18" rx="4" fill="#0a84ff"/>
+  <text x="410" y="428" text-anchor="middle" fill="#fff" font-size="8" font-weight="600">Full</text>
+  <rect x="440" y="415" width="50" height="18" rx="4" fill="#3d3d3f"/>
+  <text x="465" y="428" text-anchor="middle" fill="#86868b" font-size="8">Cards</text>
+  <rect x="495" y="415" width="40" height="18" rx="4" fill="#3d3d3f"/>
+  <text x="515" y="428" text-anchor="middle" fill="#86868b" font-size="8">Raw</text>
+
+  <!-- Status dot -->
+  <circle cx="855" cy="424" r="4" fill="#34c759"/>
+
+  <!-- Mock entries -->
+  <rect x="385" y="440" width="480" height="1" fill="#424245"/>
+
+  <text x="393" y="456" fill="#86868b" font-size="8">14:23:01</text>
+  <rect x="440" y="447" width="36" height="14" rx="3" fill="#3d3d3f"/>
+  <text x="458" y="457" text-anchor="middle" fill="#0a84ff" font-size="7" font-weight="700">BASH</text>
+  <text x="483" y="457" fill="#34c759" font-size="8" font-weight="600">$</text>
+  <text x="493" y="457" fill="#f5f5f7" font-size="8">git status</text>
+  <rect x="790" y="448" width="28" height="12" rx="3" fill="rgba(52,199,89,0.15)"/>
+  <text x="804" y="457" text-anchor="middle" fill="#34c759" font-size="7">exit 0</text>
+
+  <rect x="385" y="465" width="480" height="1" fill="#424245" opacity="0.4"/>
+
+  <text x="393" y="481" fill="#86868b" font-size="8">14:23:02</text>
+  <rect x="440" y="472" width="36" height="14" rx="3" fill="#3d3d3f"/>
+  <text x="458" y="482" text-anchor="middle" fill="#0a84ff" font-size="7" font-weight="700">READ</text>
+  <text x="483" y="482" fill="#34c759" font-size="8" font-weight="600">$</text>
+  <text x="493" y="482" fill="#f5f5f7" font-size="8">src/server.cjs</text>
+
+  <!-- ─── Side label: Features ─── -->
+  <rect x="40" y="220" width="200" height="180" rx="10" fill="#2d2d2f" stroke="#424245" stroke-width="1"/>
+  <text x="140" y="246" text-anchor="middle" fill="#f5f5f7" font-size="12" font-weight="600">Features</text>
+  <text x="56" y="268" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="268" fill="#c8c8cc" font-size="10">3 view modes</text>
+  <text x="56" y="286" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="286" fill="#c8c8cc" font-size="10">Regex search</text>
+  <text x="56" y="304" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="304" fill="#c8c8cc" font-size="10">Tool + status filters</text>
+  <text x="56" y="322" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="322" fill="#c8c8cc" font-size="10">Agent call grouping</text>
+  <text x="56" y="340" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="340" fill="#c8c8cc" font-size="10">JSONL / HTML / Text export</text>
+  <text x="56" y="358" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="358" fill="#c8c8cc" font-size="10">Auto-reconnect</text>
+  <text x="56" y="376" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="376" fill="#c8c8cc" font-size="10">Zero dependencies</text>
+  <text x="56" y="394" fill="#34c759" font-size="10">+</text>
+  <text x="70" y="394" fill="#c8c8cc" font-size="10">Keyboard accessible</text>
+
+  <!-- ─── Lifecycle note ─── -->
+  <rect x="40" y="420" width="200" height="80" rx="10" fill="none" stroke="#424245" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="140" y="444" text-anchor="middle" fill="#86868b" font-size="10">Auto-exits when parent</text>
+  <text x="140" y="458" text-anchor="middle" fill="#86868b" font-size="10">process ends, or after</text>
+  <text x="140" y="472" text-anchor="middle" fill="#86868b" font-size="10">30 min idle timeout</text>
+  <text x="140" y="490" text-anchor="middle" fill="#555" font-size="9">Owner PID monitoring</text>
+
+  <!-- Arrow: Agent → Features context -->
+  <line x1="130" y1="157" x2="130" y2="218" stroke="#424245" stroke-width="1" stroke-dasharray="4,3"/>
+</svg>
