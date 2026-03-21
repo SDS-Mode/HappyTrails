@@ -4,5 +4,6 @@ node_modules/
 .superpowers/
 docs/
 update-plugin.sh
+/scripts/
 *.log
 .superpowers/
