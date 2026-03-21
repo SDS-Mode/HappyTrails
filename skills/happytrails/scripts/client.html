@@ -901,6 +901,9 @@
       const agentIdToEntry = new Map(); // agentId → parent Agent entry
       const pendingOrphans = new Map(); // parentId → entry[] (children arrived before parent)
       const agentDomMap = new Map();    // agentId → DOM element (for targeted child updates)
+      function entryKey(e) { return e.timestamp + '_' + (e.tool || '') + '_' + (e.session_id || ''); }
+      const expandedEntries = new Set();
+      const expandedAgentChildren = new Set();
 
       // ── DOM refs ───────────────────────────────────────────────────────────
       const container = document.getElementById('log-container');
@@ -1365,6 +1368,12 @@
         toggle.addEventListener('click', function () {
           wrap.classList.toggle('expanded');
           toggle.textContent = toggle.textContent.replace(/^[▸▾]/, wrap.classList.contains('expanded') ? '▾' : '▸');
+          var key = entryKey(entry);
+          if (wrap.classList.contains('expanded')) {
+            expandedAgentChildren.add(key);
+          } else {
+            expandedAgentChildren.delete(key);
+          }
         });
         wrap.appendChild(toggle);
 
@@ -1756,6 +1765,12 @@
 
         header.addEventListener('click', function () {
           el.classList.toggle('expanded');
+          var key = entryKey(entry);
+          if (el.classList.contains('expanded')) {
+            expandedEntries.add(key);
+          } else {
+            expandedEntries.delete(key);
+          }
         });
 
         const childrenWrap = isAgentEntry(entry) ? renderAgentChildren(entry) : null;
@@ -1844,6 +1859,18 @@
             if (agentId) agentDomMap.set(agentId, el);
           }
           container.appendChild(el);
+          // Restore expanded state
+          if (currentMode === 'cards' && expandedEntries.has(entryKey(entry))) {
+            el.classList.add('expanded');
+          }
+          if (isAgentEntry(entry)) {
+            var childWrap = el.querySelector('.agent-children-wrap');
+            if (childWrap && expandedAgentChildren.has(entryKey(entry))) {
+              childWrap.classList.add('expanded');
+              var tog = childWrap.querySelector('.agent-children-toggle');
+              if (tog) tog.textContent = tog.textContent.replace(/^▸/, '▾');
+            }
+          }
         });
 
         scrollToBottom();
@@ -1933,6 +1960,8 @@
             activeToolTypes.clear();
             agentChildren.clear();
             agentIdToEntry.clear();
+            expandedEntries.clear();
+            expandedAgentChildren.clear();
             const hist = msg.entries || [];
             hist.forEach(function (e) {
               entries.push(e);

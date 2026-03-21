@@ -542,6 +542,8 @@ function startWatcher() {
   } catch (err) {
     console.error(`[server] Failed to watch directory ${watchDir}: ${err.message}`);
   }
+  // Polling fallback: catch events fs.watch misses on some platforms
+  setInterval(() => { readNewEntries(); }, 2000).unref();
 }
 
 // =============================================================================
