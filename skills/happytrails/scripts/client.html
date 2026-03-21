@@ -167,10 +167,27 @@
       background: var(--error);
       flex-shrink: 0;
       transition: background 0.3s ease;
+      position: relative;
+      font-size: 0;
+      overflow: hidden;
     }
 
     #status-dot.connected {
       background: var(--success);
+    }
+
+    #status-dot::after {
+      content: '✗';
+      font-size: 6px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--bg-primary);
+    }
+
+    #status-dot.connected::after {
+      content: '✓';
     }
 
     .mode-btn {
@@ -815,13 +832,13 @@
     <!-- Right group: icon, status, menu -->
     <div id="header-right">
       <span id="header-icon" style="font-size:20px;line-height:1;flex-shrink:0;">🥾</span>
-      <div id="status-dot" title="Disconnected"></div>
+      <div id="status-dot" title="Disconnected" role="status" aria-live="polite">Disconnected</div>
       <button id="menu-btn" title="Menu">⋯</button>
     </div>
   </div>
 
   <!-- Search overlay (hidden by default) -->
-  <div id="search-overlay">
+  <div id="search-overlay" role="search" aria-label="Search tool calls">
     <span class="search-overlay-icon">🔍</span>
     <input type="text" id="search-input" placeholder="Regex search..." />
     <button id="search-clear-btn" class="toolbar-btn">Clear</button>
@@ -844,7 +861,7 @@
     </div>
   </div>
 
-  <div id="log-container">
+  <div id="log-container" role="main">
     <div id="empty-state">Waiting for tool activity...</div>
   </div>
 
@@ -1379,6 +1396,15 @@
             expandedAgentChildren.delete(key);
           }
         });
+
+        toggle.setAttribute('tabindex', '0');
+        toggle.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle.click();
+          }
+        });
+
         wrap.appendChild(toggle);
 
         const body = document.createElement('div');
@@ -1777,6 +1803,15 @@
           }
         });
 
+        header.setAttribute('tabindex', '0');
+        header.setAttribute('role', 'button');
+        header.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            header.click();
+          }
+        });
+
         const childrenWrap = isAgentEntry(entry) ? renderAgentChildren(entry) : null;
         if (childrenWrap) el.appendChild(childrenWrap);
 
@@ -1962,6 +1997,7 @@
         ws.onopen = function () {
           statusDot.classList.add('connected');
           statusDot.title = 'Connected';
+          statusDot.textContent = 'Connected';
         };
 
         ws.onmessage = function (event) {
@@ -2004,6 +2040,7 @@
         ws.onclose = function () {
           statusDot.classList.remove('connected');
           statusDot.title = 'Disconnected';
+          statusDot.textContent = 'Disconnected';
           ws = null;
           setTimeout(connect, 1000);
         };
