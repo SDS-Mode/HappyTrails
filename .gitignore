@@ -2,6 +2,7 @@ CLAUDE.md
 node_modules/
 .happytrails/
 .superpowers/
+.firecrawl/
 docs/
 update-plugin.sh
 /scripts/
