@@ -3,4 +3,6 @@ node_modules/
 .happytrails/
 .superpowers/
 docs/
+update-plugin.sh
 *.log
+.superpowers/
