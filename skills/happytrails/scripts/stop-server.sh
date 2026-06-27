@@ -16,6 +16,21 @@ if [[ -z "$SESSION_DIR" ]]; then
   exit 1
 fi
 
+# True if $1 is shaped like a HappyTrails session dir: either
+# <project>/.happytrails/<pid>-<epoch> or /tmp/happytrails-<pid>-<epoch>.
+# Gates rm -rf so a stray arg can't redirect deletion at an arbitrary path.
+ht_is_session_dir() {
+  local d="$1"
+  [[ -n "$d" ]] || return 1
+  local base; base="$(basename "$d")"
+  [[ "$base" == *-[0-9]* ]] || return 1
+  case "$d/" in
+    /tmp/happytrails-*/) return 0 ;;
+  esac
+  local parent; parent="$(dirname "$d")"
+  [[ "$(basename "$parent")" == ".happytrails" ]]
+}
+
 PID_FILE="${SESSION_DIR}/.server.pid"
 if [[ -f "$PID_FILE" ]]; then
   pid=$(cat "$PID_FILE")
@@ -45,8 +60,11 @@ if [[ -f "$PID_FILE" ]]; then
     fi
   fi
 
-  if [[ "$SESSION_DIR" == /tmp/* ]]; then
-    rm -rf "$SESSION_DIR"
+  # Remove the whole session dir (project-local too, not just /tmp) so its log
+  # (captured commands, file contents, secrets) doesn't linger after stop.
+  # Guarded so a stray arg can't direct rm -rf at an arbitrary path.
+  if ht_is_session_dir "$SESSION_DIR"; then
+    rm -rf "$SESSION_DIR" 2>/dev/null || true
   fi
   echo '{"status": "stopped"}'
 else
