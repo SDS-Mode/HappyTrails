@@ -55,6 +55,22 @@ SERVER_LOG="${SESSION_DIR}/.server.log"
 
 ACTIVE_FILE="${PROJECT_DIR:+${PROJECT_DIR}/.happytrails/.active}"
 
+# True if $1 is shaped like a HappyTrails session dir: either
+# <project>/.happytrails/<pid>-<epoch> or /tmp/happytrails-<pid>-<epoch>.
+# Gates rm -rf so a tampered .active pointer (or stray arg) can't redirect
+# deletion at an arbitrary path.
+ht_is_session_dir() {
+  local d="$1"
+  [[ -n "$d" ]] || return 1
+  local base; base="$(basename "$d")"
+  [[ "$base" == *-[0-9]* ]] || return 1
+  case "$d/" in
+    /tmp/happytrails-*/) return 0 ;;
+  esac
+  local parent; parent="$(dirname "$d")"
+  [[ "$(basename "$parent")" == ".happytrails" ]]
+}
+
 # --- Duplicate session detection ---
 # If an active session exists, stop its server before starting a new one
 if [[ -n "$ACTIVE_FILE" && -f "$ACTIVE_FILE" ]]; then
@@ -85,14 +101,42 @@ if [[ -n "$ACTIVE_FILE" && -f "$ACTIVE_FILE" ]]; then
       fi
       rm -f "$OLD_PID_FILE"
     fi
+    # Remove the orphaned old session dir so its log (captured commands, file
+    # contents, secrets) doesn't accumulate on disk across sessions.
+    if ht_is_session_dir "$OLD_SESSION_DIR" && [[ "$OLD_SESSION_DIR" != "$SESSION_DIR" ]]; then
+      rm -rf "$OLD_SESSION_DIR" 2>/dev/null || true
+    fi
   fi
   rm -f "$ACTIVE_FILE"
 fi
 
 mkdir -p "$SESSION_DIR"
+# Lock the session dir to the owner so other local users can't read captured
+# activity (commands, file contents, secrets) — important for the /tmp default,
+# whose parent is world-listable.
+chmod 700 "$SESSION_DIR" 2>/dev/null || true
+
+# --- TTL sweep: reap session dirs left by sessions that died without being
+# stopped (owner-process exit, idle timeout). Bounds sensitive-data buildup
+# over weeks of use. Only project-local dirs accumulate this way; /tmp is
+# reaped by the OS. KEEP_DAYS is configurable (default 7).
+if [[ -n "$PROJECT_DIR" ]]; then
+  HT_ROOT="${PROJECT_DIR}/.happytrails"
+  KEEP_DAYS="${HAPPYTRAILS_KEEP_DAYS:-7}"
+  if [[ -d "$HT_ROOT" && "$KEEP_DAYS" =~ ^[0-9]+$ ]]; then
+    while IFS= read -r -d '' stale; do
+      [[ "$stale" == "$SESSION_DIR" ]] && continue
+      if ht_is_session_dir "$stale"; then
+        rm -rf "$stale" 2>/dev/null || true
+      fi
+    done < <(find "$HT_ROOT" -maxdepth 1 -mindepth 1 -type d -mtime "+$KEEP_DAYS" -print0 2>/dev/null)
+  fi
+fi
 
 # --- Automatic .gitignore management ---
-if [[ -n "$PROJECT_DIR" ]]; then
+# Keep captured session data out of git — but only inside an actual git repo, so
+# we never create a .gitignore in a gitless project (which would be surprising).
+if [[ -n "$PROJECT_DIR" ]] && git -C "$PROJECT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   GITIGNORE="${PROJECT_DIR}/.gitignore"
   if [[ -f "$GITIGNORE" ]]; then
     if ! grep -qxF '.happytrails/' "$GITIGNORE"; then
