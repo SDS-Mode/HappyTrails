@@ -99,6 +99,7 @@ const OWNER_PID = process.env.HAPPYTRAILS_OWNER_PID ? Number(process.env.HAPPYTR
 const LOCK_FILE = process.env.HAPPYTRAILS_LOCK_FILE || null;
 const HAPPYTRAILS_SOURCE = process.env.HAPPYTRAILS_SOURCE || 'hook';
 const MAX_HISTORY_BYTES = 10_000_000; // 10MB cap for history load
+const MAX_PENDING_TOOLS = 1000; // Cap on unmatched tool_use entries (transcript mode)
 const TRANSCRIPT_PATH = process.env.HAPPYTRAILS_TRANSCRIPT_PATH || null;
 
 const DEFAULT_ICON = '🥾';
@@ -415,6 +416,13 @@ function parseTranscriptLine(line) {
   if (entry.type === 'assistant' && entry.message && Array.isArray(entry.message.content)) {
     for (const block of entry.message.content) {
       if (block.type === 'tool_use' && block.id && block.name) {
+        // Bound growth: if a tool_use's result never arrives (truncated transcript,
+        // interrupted session), evict the oldest pending entry so the map can't
+        // grow without limit.
+        if (pendingTools.size >= MAX_PENDING_TOOLS) {
+          const oldest = pendingTools.keys().next().value;
+          if (oldest !== undefined) pendingTools.delete(oldest);
+        }
         pendingTools.set(block.id, {
           name: block.name,
           input: block.input || {},
@@ -478,12 +486,17 @@ function loadHistory() {
     const buf = Buffer.alloc(readSize);
     fs.readSync(fd, buf, 0, readSize, seekPos);
     fs.closeSync(fd);
-    fileOffset = stat.size;
 
     const text = buf.toString('utf-8');
     let lines = text.split('\n');
     // If we seeked past the start, first line is likely partial — discard it
     if (seekPos > 0) lines.shift();
+    // A client can connect mid-append, leaving a partial final line. Hold it back
+    // into partialLine (like the tailer) so the next read can reconstruct it,
+    // instead of failing to parse it and silently dropping the entry. fileOffset
+    // stays at EOF: the held bytes are in partialLine, not re-read from disk.
+    partialLine = lines.pop() || '';
+    fileOffset = stat.size;
 
     const entries = [];
     if (HAPPYTRAILS_SOURCE === 'transcript') {
