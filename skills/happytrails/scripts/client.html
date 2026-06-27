@@ -1992,7 +1992,8 @@
 
       // ── WebSocket ──────────────────────────────────────────────────────────
       function connect() {
-        ws = new WebSocket('ws://' + window.location.host);
+        // Reuse this page's path (which carries the auth token) for the WS URL.
+        ws = new WebSocket('ws://' + window.location.host + window.location.pathname);
 
         ws.onopen = function () {
           statusDot.classList.add('connected');

@@ -71,6 +71,20 @@ function decodeFrame(buffer) {
 // Section 2: Configuration
 // =============================================================================
 
+// Restrictive umask: every file/dir this server creates (session dir, log,
+// pid/info/lock files) lands at 0600/0700 so captured activity — which can
+// contain commands, file contents, and secrets — is never world-readable.
+// This matters most for the default /tmp session dir, which sits in a
+// world-listable parent.
+process.umask(0o077);
+
+// Per-session authentication token. The viewer page and every WebSocket
+// upgrade MUST carry this token in the URL path; requests without it are
+// rejected. This stops any other localhost-originated page from silently
+// reading the activity stream, since possession of the secret URL is required
+// to connect. Generated fresh on each server start.
+const AUTH_TOKEN = crypto.randomBytes(24).toString('hex');
+
 const PORT = process.env.HAPPYTRAILS_PORT || (49152 + Math.floor(Math.random() * 16383));
 const HOST = process.env.HAPPYTRAILS_HOST || '127.0.0.1';
 const URL_HOST = process.env.HAPPYTRAILS_URL_HOST || (HOST === '127.0.0.1' ? 'localhost' : HOST);
@@ -183,6 +197,21 @@ function isOwnerAlive() {
 // Section 3: HTTP Handler
 // =============================================================================
 
+// Extract the pathname from an incoming request URI (strips any query string).
+function reqPathname(req) {
+  try {
+    return new URL(req.url, 'http://localhost').pathname;
+  } catch (_) {
+    return '';
+  }
+}
+
+// True if the request path carries this session's auth token. Both the viewer
+// page and the WebSocket upgrade are gated on this.
+function isAuthPath(pathname) {
+  return pathname === '/' + AUTH_TOKEN || pathname === '/' + AUTH_TOKEN + '/';
+}
+
 // Read client.html at startup (relative to this script's location)
 const CLIENT_HTML_PATH = path.join(__dirname, 'client.html');
 let clientHtml;
@@ -213,7 +242,7 @@ function touchActivity() {
 
 function handleHttp(req, res) {
   touchActivity();
-  if (req.method === 'GET' && req.url === '/') {
+  if (req.method === 'GET' && isAuthPath(reqPathname(req))) {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': Buffer.byteLength(clientHtml),
@@ -271,6 +300,13 @@ function isOriginAllowed(req) {
 
 function handleUpgrade(req, socket, head) {
   touchActivity();
+
+  // Require the per-session auth token in the upgrade path before anything else.
+  if (!isAuthPath(reqPathname(req))) {
+    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+    socket.destroy();
+    return;
+  }
 
   const clientKey = req.headers['sec-websocket-key'];
   if (!clientKey) {
@@ -553,8 +589,13 @@ function startWatcher() {
 const SERVER_INFO_FILE = path.join(SESSION_DIR, '.server-info');
 const SERVER_STOPPED_FILE = path.join(SESSION_DIR, '.server-stopped');
 
+// Construct the viewer URL, embedding the per-session auth token in the path.
+function viewerUrl(port) {
+  return 'http://' + URL_HOST + ':' + port + '/' + AUTH_TOKEN;
+}
+
 function writeServerInfo(port) {
-  const url = `http://${URL_HOST}:${port}/`;
+  const url = viewerUrl(port);
   const info = {
     type: 'happytrails-server',
     port,
@@ -692,12 +733,12 @@ server.on('upgrade', handleUpgrade);
 server.listen(PORT, HOST, () => {
   const addr = server.address();
   const actualPort = addr.port;
-  console.log(`[server] HappyTrails server listening on http://${URL_HOST}:${actualPort}/`);
+  console.log(`[server] HappyTrails server listening on ${viewerUrl(actualPort)}`);
   console.log(`[server] Session dir: ${SESSION_DIR}`);
   console.log(`[server] Log file: ${LOG_FILE}`);
   console.log(`[server] Source: ${HAPPYTRAILS_SOURCE}${HAPPYTRAILS_SOURCE === 'transcript' ? ' (' + TRANSCRIPT_PATH + ')' : ''}`);
   writeServerInfo(actualPort);
-  const url = `http://${URL_HOST}:${actualPort}/`;
+  const url = viewerUrl(actualPort);
   console.log(JSON.stringify({
     type: 'server-started',
     port: actualPort,
