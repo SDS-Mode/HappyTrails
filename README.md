@@ -19,7 +19,8 @@ HappyTrails is a Claude Code plugin installed via marketplace.
 In Claude Code, run:
 
 ```
-/install-plugin https://github.com/RCellar/HappyTrails.git
+/plugin marketplace add SDS-Mode/HappyTrails
+/plugin install happytrails@happytrails-marketplace
 ```
 
 ### 2. Restart Claude Code
