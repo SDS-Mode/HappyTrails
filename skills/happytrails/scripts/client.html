@@ -903,6 +903,7 @@
 
       // ── State ──────────────────────────────────────────────────────────────
       const entries = [];
+      let entrySeq = 0; // monotonic per-entry id, assigned on insertion (avoids entryKey collisions)
       let currentMode = (function () { try { return localStorage.getItem('ht-mode'); } catch (_) { return null; } })() || 'verbose';
       let autoScroll = true;
       let ws = null;
@@ -914,6 +915,7 @@
       let knownToolTypes = new Set();  // All tool types seen so far
       let statusFilter = 'all';       // 'all' | 'success' | 'failure'
       const SEARCH_CAP = 5000; // Max chars for regex search/highlight (prevents catastrophic backtracking)
+      const MAX_ENTRIES = 5000; // Cap on live entries[] to bound memory on long sessions (mirrors server front-truncation)
       let historyTruncated = false;
       let historyTotalSize = 0;
 
@@ -922,7 +924,13 @@
       const agentIdToEntry = new Map(); // agentId → parent Agent entry
       const pendingOrphans = new Map(); // parentId → entry[] (children arrived before parent)
       const agentDomMap = new Map();    // agentId → DOM element (for targeted child updates)
-      function entryKey(e) { return e.timestamp + '_' + (e.tool || '') + '_' + (e.session_id || ''); }
+      // Stable identity for an entry (expanded-state restore). Prefer the monotonic
+      // _idx (unique even when two calls share the same ms-timestamp/tool/session);
+      // fall back to the legacy composite for any entry lacking _idx.
+      function entryKey(e) {
+        if (e && e._idx != null) return 'i' + e._idx;
+        return e.timestamp + '_' + (e.tool || '') + '_' + (e.session_id || '');
+      }
       const expandedEntries = new Set();
       const expandedAgentChildren = new Set();
 
@@ -1116,6 +1124,9 @@
         return '<!DOCTYPE html>\n<html lang="en">\n<head>\n'
           + '<meta charset="UTF-8">\n'
           + '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+          // Lock down the exported doc: no scripts (the export is static), inline
+          // styles + data: images only. Defense-in-depth if the file is shared.
+          + '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:;">\n'
           + '<title>HappyTrails Export</title>\n'
           + '<style>\n' + styles + '\n'
           + '#log-container { margin-top: 0; height: auto; overflow: visible; }\n'
@@ -1284,9 +1295,33 @@
         return null;
       }
 
+      // Agent run statuses that represent a real failure — excludes 'completed'
+      // and 'async_launched' (a successful background launch, not a failure).
+      function isAgentStatusFailed(status) {
+        return status === 'failed' || status === 'error' ||
+               status === 'cancelled' || status === 'canceled';
+      }
+
+      // Single source of truth for "did this tool call fail?" — consulted by the
+      // status filter, the card red border, and the exit badges. Covers shell
+      // exit codes, MCP/Claude-API isError flags, error content-blocks, and
+      // Agent run status, so non-shell failures (MCP errors, failed subagents,
+      // Read/WebFetch errors) are no longer mis-counted as successes.
       function isFailure(entry) {
+        const output = entry.output || {};
+        // 1) Shell exit code / success flag (Bash, etc.)
         const code = getExitCode(entry);
-        return code !== null && code !== 0;
+        if (code !== null) return code !== 0;
+        // 2) MCP / Claude-API tool errors surfaced as a top-level flag
+        if (output.isError === true || output.is_error === true) return true;
+        // 3) Error flag nested in a content array (or when output itself is one)
+        const content = Array.isArray(output) ? output : output.content;
+        if (Array.isArray(content) && content.some(function (c) {
+          return c && (c.isError === true || c.is_error === true);
+        })) return true;
+        // 4) Agent run status
+        if (isAgentEntry(entry) && isAgentStatusFailed(output.status)) return true;
+        return false;
       }
 
       function escapeHtml(text) {
@@ -1332,7 +1367,7 @@
         bar.className = 'agent-stats';
         if (stats.status) {
           const badge = document.createElement('span');
-          badge.className = 'agent-stats-badge ' + (stats.status === 'completed' ? 'completed' : 'failed');
+          badge.className = 'agent-stats-badge ' + (isAgentStatusFailed(stats.status) ? 'failed' : 'completed');
           badge.textContent = (stats.status === 'completed' ? '✓ ' : '✗ ') + stats.status;
           bar.appendChild(badge);
         }
@@ -1736,7 +1771,7 @@
           if (agentStats) {
             if (agentStats.status) {
               const statusEl = document.createElement('span');
-              statusEl.className = 'card-exit ' + (agentStats.status === 'completed' ? 'success' : 'failure');
+              statusEl.className = 'card-exit ' + (isAgentStatusFailed(agentStats.status) ? 'failure' : 'success');
               statusEl.textContent = (agentStats.status === 'completed' ? '✓' : '✗');
               meta.appendChild(statusEl);
             }
@@ -1933,11 +1968,39 @@
       }
 
       // ── Append single entry ────────────────────────────────────────────────
+      // Drop references to entries no longer in entries[] from the grouping maps
+      // (used after capping, so dropped entries don't leak via agentChildren etc.).
+      function pruneDroppedEntries(keptSet) {
+        for (const [id, children] of agentChildren) {
+          const kept = children.filter(function (c) { return keptSet.has(c); });
+          if (kept.length) agentChildren.set(id, kept); else agentChildren.delete(id);
+        }
+        for (const [id, e] of agentIdToEntry) {
+          if (!keptSet.has(e)) agentIdToEntry.delete(id);
+        }
+        for (const [id, arr] of pendingOrphans) {
+          const kept = arr.filter(function (c) { return keptSet.has(c); });
+          if (kept.length) pendingOrphans.set(id, kept); else pendingOrphans.delete(id);
+        }
+      }
+
       function appendEntry(entry) {
+        entry._idx = entrySeq++;
         entries.push(entry);
         indexAgentEntry(entry);
         const isChild = indexChildEntry(entry);
         const isNewType = trackToolType(entry);
+
+        // Bound memory on long sessions: once over the cap, drop the oldest batch
+        // (back to 90% of cap, so the re-render amortizes over ~10% of entries
+        // rather than firing every push), prune stale grouping refs, and rebuild.
+        if (entries.length > MAX_ENTRIES) {
+          entries.splice(0, entries.length - Math.floor(MAX_ENTRIES * 0.9));
+          pruneDroppedEntries(new Set(entries));
+          if (isNewType) updateToolTypeDropdown();
+          renderAll();
+          return;
+        }
 
         if (isNewType) {
           updateToolTypeDropdown();
@@ -2023,6 +2086,7 @@
             expandedAgentChildren.clear();
             const hist = msg.entries || [];
             hist.forEach(function (e) {
+              e._idx = entrySeq++;
               entries.push(e);
               trackToolType(e);
               indexAgentEntry(e);
